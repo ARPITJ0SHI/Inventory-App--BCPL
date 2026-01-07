@@ -81,13 +81,13 @@ export default function OrdersScreen() {
         fetchData(1, false);
     }, [locationFilter, sortOrder]);
 
-    // Debounced search (800ms delay)
+    // Search - only triggers when user presses Enter or search button
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        debounceTimer.current = setTimeout(() => {
-            fetchData(1, false);
-        }, 800);
+    }, []);
+
+    const handleSearchSubmit = useCallback(() => {
+        fetchData(1, false);
     }, [fetchData]);
 
     // Handle filter/sort changes
@@ -362,11 +362,18 @@ export default function OrdersScreen() {
                             <Ionicons name="search" size={20} color={theme.textSecondary} />
                             <TextInput
                                 style={{ flex: 1, marginLeft: 8, color: theme.text, fontSize: 14 }}
-                                placeholder="Search orders by item name..."
+                                placeholder="Search by vendor/item... (Enter)"
                                 placeholderTextColor={theme.textSecondary}
                                 value={search}
                                 onChangeText={handleSearchChange}
+                                onSubmitEditing={handleSearchSubmit}
+                                returnKeyType="search"
                             />
+                            {search.length > 0 && (
+                                <TouchableOpacity onPress={handleSearchSubmit}>
+                                    <Ionicons name="arrow-forward-circle" size={24} color={theme.primary} />
+                                </TouchableOpacity>
+                            )}
                         </View>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
                             {/* Location Filter (Admin only) */}

@@ -105,13 +105,13 @@ export default function StockScreen() {
         fetchData(1, false);
     }, []);
 
-    // Debounced search - triggers server-side search (800ms delay)
+    // Search - only triggers when user presses Enter or search button
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        debounceTimer.current = setTimeout(() => {
-            fetchData(1, false);
-        }, 800);
+    }, []);
+
+    const handleSearchSubmit = useCallback(() => {
+        fetchData(1, false);
     }, [fetchData]);
 
     // Handle filter/sort changes
@@ -322,11 +322,18 @@ export default function StockScreen() {
                             <Ionicons name="search" size={20} color={theme.textSecondary} />
                             <TextInput
                                 style={[styles.searchInput, { color: theme.text }]}
-                                placeholder="Search stock..."
+                                placeholder="Search stock... (press Enter)"
                                 placeholderTextColor={theme.textSecondary}
                                 value={search}
                                 onChangeText={handleSearchChange}
+                                onSubmitEditing={handleSearchSubmit}
+                                returnKeyType="search"
                             />
+                            {search.length > 0 && (
+                                <TouchableOpacity onPress={handleSearchSubmit}>
+                                    <Ionicons name="arrow-forward-circle" size={24} color={theme.primary} />
+                                </TouchableOpacity>
+                            )}
                         </View>
                         {/* Filter Row */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>

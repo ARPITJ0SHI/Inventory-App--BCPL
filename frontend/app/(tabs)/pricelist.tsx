@@ -89,13 +89,13 @@ export default function PriceListScreen() {
         fetchData(1, false);
     }, []);
 
-    // Debounced search (800ms delay)
+    // Search - only triggers when user presses Enter or search button
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        debounceTimer.current = setTimeout(() => {
-            fetchData(1, false);
-        }, 800);
+    }, []);
+
+    const handleSearchSubmit = useCallback(() => {
+        fetchData(1, false);
     }, [fetchData]);
 
     // Sort toggle
@@ -216,11 +216,18 @@ export default function PriceListScreen() {
                     <Ionicons name="search" size={20} color={theme.textSecondary} />
                     <TextInput
                         style={[styles.searchInput, { color: theme.text }]}
-                        placeholder="Search products..."
+                        placeholder="Search products... (Enter)"
                         placeholderTextColor={theme.textSecondary}
                         value={search}
                         onChangeText={handleSearchChange}
+                        onSubmitEditing={handleSearchSubmit}
+                        returnKeyType="search"
                     />
+                    {search.length > 0 && (
+                        <TouchableOpacity onPress={handleSearchSubmit}>
+                            <Ionicons name="arrow-forward-circle" size={24} color={theme.primary} />
+                        </TouchableOpacity>
+                    )}
                 </View>
                 {/* Sort Toggle */}
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
