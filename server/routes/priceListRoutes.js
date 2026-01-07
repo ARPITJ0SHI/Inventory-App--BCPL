@@ -6,7 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 // Get all price items (paginated)
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        const { page = 1, limit = 20, search } = req.query;
+        const { page = 1, limit = 20, search, sort = 'newest' } = req.query;
         const pageNum = parseInt(page);
         const limitNum = Math.min(parseInt(limit), 50);
         const skip = (pageNum - 1) * limitNum;
@@ -31,6 +31,14 @@ router.get('/', authMiddleware, async (req, res) => {
                 (item.category && item.category.toLowerCase().includes(searchLower))
             );
         }
+
+        // Sort by newest/oldest (default: newest)
+        const sortOrder = sort === 'oldest' ? 1 : -1;
+        allItems.sort((a, b) => {
+            const aTime = a._id?.getTimestamp?.() || new Date(0);
+            const bTime = b._id?.getTimestamp?.() || new Date(0);
+            return sortOrder * (bTime - aTime);
+        });
 
         const total = allItems.length;
         const paginatedItems = allItems.slice(skip, skip + limitNum);

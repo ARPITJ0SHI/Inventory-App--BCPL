@@ -28,6 +28,8 @@ export default function StockScreen() {
     const [items, setItems] = useState<StockItem[]>([]);
     const [filteredItems, setFilteredItems] = useState<StockItem[]>([]);
     const [search, setSearch] = useState('');
+    const [locationFilter, setLocationFilter] = useState<string>(''); // '' = All
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
     const [loading, setLoading] = useState(true);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -35,9 +37,10 @@ export default function StockScreen() {
     const [hasMore, setHasMore] = useState(true);
     const { theme: themeMode } = useTheme();
     const theme = Colors[themeMode];
-    const { role, canEditStock, getAllowedLocations } = useRBAC();
+    const { role, canEditStock, getAllowedLocations, Role } = useRBAC();
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const allowedLocations = useMemo(() => getAllowedLocations(), [role]);
+    const isAdmin = role === Role.SUPER_ADMIN || role === Role.KHUSHAL;
 
     // Modal State
     const [modalVisible, setModalVisible] = useState(false);
@@ -58,20 +61,14 @@ export default function StockScreen() {
             if (pageNum === 1) setLoading(true);
             else setLoadingMore(true);
 
-            const response = await dataService.getStock(pageNum, 15);
+            const response = await dataService.getStock(pageNum, 15, search, locationFilter, sortOrder);
             const data = response.data || response;
             const pagination = response.pagination;
 
-            console.log('Stock API Response:', JSON.stringify(response, null, 2));
-            console.log('Allowed Locations:', allowedLocations);
-            console.log('Raw Data Length:', data?.length);
-
-            // Filter by allowed locations
+            // Filter by allowed locations (safety check)
             const filtered = Array.isArray(data) ? data.filter((item: StockItem) =>
                 allowedLocations.includes(item.location as LocationType)
             ) : [];
-
-            console.log('Filtered Data Length:', filtered.length);
 
             if (append) {
                 setItems(prev => [...prev, ...filtered]);
@@ -90,29 +87,35 @@ export default function StockScreen() {
             setLoadingMore(false);
             setIsInitialLoad(false);
         }
-    }, [role, allowedLocations]);
+    }, [search, locationFilter, sortOrder, allowedLocations]);
 
     const loadMore = useCallback(() => {
-        if (!loadingMore && hasMore && !search) {
+        if (!loadingMore && hasMore) {
             fetchData(page + 1, true);
         }
-    }, [loadingMore, hasMore, page, fetchData, search]);
+    }, [loadingMore, hasMore, page, fetchData]);
 
     useEffect(() => {
         fetchData(1, false);
     }, [fetchData]);
 
-    // Debounced search
+    // Debounced search - triggers server-side search
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => {
-            const filtered = items.filter(item =>
-                (item.productName || '').toLowerCase().includes(text.toLowerCase())
-            );
-            setFilteredItems(filtered);
-        }, 300);
-    }, [items]);
+            fetchData(1, false);
+        }, 500);
+    }, [fetchData]);
+
+    // Handle filter/sort changes
+    const handleLocationFilterChange = useCallback((loc: string) => {
+        setLocationFilter(loc);
+    }, []);
+
+    const toggleSortOrder = useCallback(() => {
+        setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
+    }, []);
 
     const handleAdd = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -306,16 +309,58 @@ export default function StockScreen() {
                     )}
                 </View>
                 {!selectionMode && (
-                    <View style={[styles.searchContainer, { backgroundColor: theme.surface, borderColor: theme.border, marginTop: 16 }]}>
-                        <Ionicons name="search" size={20} color={theme.textSecondary} />
-                        <TextInput
-                            style={[styles.searchInput, { color: theme.text }]}
-                            placeholder="Search stock..."
-                            placeholderTextColor={theme.textSecondary}
-                            value={search}
-                            onChangeText={handleSearchChange}
-                        />
-                    </View>
+                    <>
+                        <View style={[styles.searchContainer, { backgroundColor: theme.surface, borderColor: theme.border, marginTop: 16 }]}>
+                            <Ionicons name="search" size={20} color={theme.textSecondary} />
+                            <TextInput
+                                style={[styles.searchInput, { color: theme.text }]}
+                                placeholder="Search stock..."
+                                placeholderTextColor={theme.textSecondary}
+                                value={search}
+                                onChangeText={handleSearchChange}
+                            />
+                        </View>
+                        {/* Filter Row */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                            {/* Location Filter (Admin only) */}
+                            {isAdmin && (
+                                <View style={{ flexDirection: 'row', gap: 8 }}>
+                                    {['', 'Shop', 'Factory'].map(loc => (
+                                        <TouchableOpacity
+                                            key={loc || 'all'}
+                                            onPress={() => handleLocationFilterChange(loc)}
+                                            style={{
+                                                paddingHorizontal: 12,
+                                                paddingVertical: 6,
+                                                borderRadius: 16,
+                                                backgroundColor: locationFilter === loc ? theme.primary : theme.surface,
+                                                borderWidth: 1,
+                                                borderColor: locationFilter === loc ? theme.primary : theme.border,
+                                            }}
+                                        >
+                                            <Text style={{ color: locationFilter === loc ? '#fff' : theme.text, fontSize: 12 }}>
+                                                {loc || 'All'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+                            {/* Sort Toggle */}
+                            <TouchableOpacity
+                                onPress={toggleSortOrder}
+                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            >
+                                <Ionicons
+                                    name={sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'}
+                                    size={16}
+                                    color={theme.primary}
+                                />
+                                <Text style={{ color: theme.primary, fontSize: 12 }}>
+                                    {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </>
                 )}
             </View>
 

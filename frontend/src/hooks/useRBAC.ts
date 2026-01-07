@@ -7,7 +7,7 @@ export enum Role {
     SHOP_MANAGER = 'shop_manager',
 }
 
-export type LocationType = 'Shop' | 'Godown' | 'Factory' | 'Trade';
+export type LocationType = 'Shop' | 'Factory';
 
 export const useRBAC = () => {
     const { role } = useAuth();
@@ -22,16 +22,16 @@ export const useRBAC = () => {
     const canEditStock = (location?: LocationType) => {
         if (!role) return false;
         if (role === Role.SUPER_ADMIN || role === Role.KHUSHAL) return true;
-        if (role === Role.FACTORY_MANAGER) return location === undefined || location === 'Factory' || location === 'Trade';
-        if (role === Role.SHOP_MANAGER) return location === undefined || location === 'Shop' || location === 'Godown';
+        if (role === Role.FACTORY_MANAGER) return location === undefined || location === 'Factory';
+        if (role === Role.SHOP_MANAGER) return location === undefined || location === 'Shop';
         return false;
     };
 
     const canViewStock = (location: LocationType) => {
         if (!role) return false;
         if (role === Role.SUPER_ADMIN || role === Role.KHUSHAL) return true;
-        if (role === Role.FACTORY_MANAGER && (location === 'Factory' || location === 'Trade')) return true;
-        if (role === Role.SHOP_MANAGER && (location === 'Shop' || location === 'Godown')) return true;
+        if (role === Role.FACTORY_MANAGER && location === 'Factory') return true;
+        if (role === Role.SHOP_MANAGER && location === 'Shop') return true;
         return false;
     };
 
@@ -40,8 +40,8 @@ export const useRBAC = () => {
     const canEditOrders = (location?: LocationType) => {
         if (!role) return false;
         if (role === Role.SUPER_ADMIN || role === Role.KHUSHAL) return true;
-        if (role === Role.FACTORY_MANAGER) return location === undefined || location === 'Factory' || location === 'Trade';
-        if (role === Role.SHOP_MANAGER) return location === undefined || location === 'Shop' || location === 'Godown';
+        if (role === Role.FACTORY_MANAGER) return location === undefined || location === 'Factory';
+        if (role === Role.SHOP_MANAGER) return location === undefined || location === 'Shop';
         return false;
     };
 
@@ -71,10 +71,10 @@ export const useRBAC = () => {
     // Get allowed locations for current user
     const getAllowedLocations = (): LocationType[] => {
         if (role === Role.SUPER_ADMIN || role === Role.KHUSHAL) {
-            return ['Shop', 'Godown', 'Factory', 'Trade'];
+            return ['Shop', 'Factory'];
         }
-        if (role === Role.FACTORY_MANAGER) return ['Factory', 'Trade'];
-        if (role === Role.SHOP_MANAGER) return ['Shop', 'Godown'];
+        if (role === Role.FACTORY_MANAGER) return ['Factory'];
+        if (role === Role.SHOP_MANAGER) return ['Shop'];
         return [];
     };
 

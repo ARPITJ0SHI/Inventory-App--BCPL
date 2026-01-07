@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const stockSchema = new mongoose.Schema({
     location: {
         type: String,
-        enum: ['Shop', 'Godown', 'Factory', 'Trade'],
+        enum: ['Shop', 'Factory'],
         required: true,
         unique: true
     },

@@ -16,9 +16,9 @@ router.get('/', authMiddleware, async (req, res) => {
         let locationFilter = {};
 
         // Role Logic
-        if (role === 'factory_manager') locationFilter = { location: { $in: ['Factory', 'Trade'] } };
-        if (role === 'shop_manager') locationFilter = { location: { $in: ['Shop', 'Godown'] } };
-        // super_admin, viewer see all
+        if (role === 'factory_manager') locationFilter = { location: 'Factory' };
+        if (role === 'shop_manager') locationFilter = { location: 'Shop' };
+        // super_admin, khushal, viewer see all
 
         // Fetch all relevant documents (small number of docs)
         const stocks = await Stock.find(locationFilter).lean();
@@ -47,8 +47,19 @@ router.get('/', authMiddleware, async (req, res) => {
             );
         }
 
-        // Sort alphabetically by productName
-        allItems.sort((a, b) => (a.productName || '').localeCompare(b.productName || ''));
+        // Filter by specific location (for admin filter UI)
+        if (req.query.location) {
+            allItems = allItems.filter(item => item.location === req.query.location);
+        }
+
+        // Sort by newest/oldest (default: newest)
+        const sortOrder = req.query.sort === 'oldest' ? 1 : -1;
+        allItems.sort((a, b) => {
+            // Use _id creation time as proxy for creation date
+            const aTime = a._id?.getTimestamp?.() || new Date(0);
+            const bTime = b._id?.getTimestamp?.() || new Date(0);
+            return sortOrder * (bTime - aTime);
+        });
 
         // Pagination
         const total = allItems.length;
@@ -119,7 +130,7 @@ router.delete('/:location/:itemName', authMiddleware, async (req, res) => {
 // Seed Initial Stocks (Helper)
 router.post('/seed', async (req, res) => {
     try {
-        const locations = ['Shop', 'Godown', 'Factory', 'Trade'];
+        const locations = ['Shop', 'Factory'];
         for (const loc of locations) {
             const exists = await Stock.findOne({ location: loc });
             if (!exists) {

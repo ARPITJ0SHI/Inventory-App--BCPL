@@ -79,13 +79,14 @@ const mongoose = require('mongoose');
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { role } = req.user;
-        const { page = 1, limit = 20, search } = req.query;
+        const { page = 1, limit = 20, search, location, sort = 'newest' } = req.query;
         const pageNum = parseInt(page);
-        const limitNum = Math.min(parseInt(limit), 50); // Max 50 per page
+        const limitNum = Math.min(parseInt(limit), 50);
         const skip = (pageNum - 1) * limitNum;
 
         let filter = {};
 
+        // Search filter
         if (search) {
             const searchRegex = { $regex: search, $options: 'i' };
             const orConditions = [
@@ -99,14 +100,22 @@ router.get('/', authMiddleware, async (req, res) => {
             filter.$or = orConditions;
         }
 
+        // Location filter (for admin UI)
+        if (location) {
+            filter.location = location;
+        }
+
         // Get total count for pagination metadata
         const total = await Order.countDocuments(filter);
 
+        // Sort order
+        const sortOrder = sort === 'oldest' ? { createdAt: 1 } : { createdAt: -1 };
+
         // Fetch paginated orders
         const orders = await Order.find(filter)
-            .select('-images') // Exclude images for list performance
+            .select('-images')
             .populate('createdBy', 'username')
-            .sort({ createdAt: -1 })
+            .sort(sortOrder)
             .skip(skip)
             .limit(limitNum)
             .lean();

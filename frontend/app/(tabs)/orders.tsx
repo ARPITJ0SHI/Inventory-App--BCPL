@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Colors } from '../../src/constants/Colors';
 import { Card } from '../../src/components/Card';
 import { dataService, Order } from '../../src/services/dataService';
@@ -13,6 +13,9 @@ import * as Haptics from 'expo-haptics';
 
 export default function OrdersScreen() {
     const [orders, setOrders] = useState<Order[]>([]);
+    const [search, setSearch] = useState('');
+    const [locationFilter, setLocationFilter] = useState<string>(''); // '' = All
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
     const [loading, setLoading] = useState(true);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -23,8 +26,10 @@ export default function OrdersScreen() {
     const router = useRouter();
     const { theme: themeMode } = useTheme();
     const theme = Colors[themeMode];
-    const { canEditOrders, canUpdateOrderStatus, getAllowedLocations, role } = useRBAC();
+    const { canEditOrders, canUpdateOrderStatus, getAllowedLocations, role, Role } = useRBAC();
     const allowedLocations = useMemo(() => getAllowedLocations(), [role]);
+    const isAdmin = role === Role.SUPER_ADMIN || role === Role.KHUSHAL;
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Stats calculations
     const stats = useMemo(() => {
@@ -39,14 +44,14 @@ export default function OrdersScreen() {
             if (pageNum === 1) setLoading(true);
             else setLoadingMore(true);
 
-            const response = await dataService.getOrders(pageNum, 15);
+            const response = await dataService.getOrders(pageNum, 15, search, locationFilter, sortOrder);
             const data = response.data || response;
             const pagination = response.pagination;
 
-            // Filter by allowed locations
-            const filtered = data.filter((order: Order) =>
+            // Filter by allowed locations (safety check)
+            const filtered = Array.isArray(data) ? data.filter((order: Order) =>
                 allowedLocations.includes((order.location || 'Shop') as LocationType)
-            );
+            ) : [];
 
             if (append) {
                 setOrders(prev => [...prev, ...filtered]);
@@ -63,13 +68,31 @@ export default function OrdersScreen() {
             setLoadingMore(false);
             setIsInitialLoad(false);
         }
-    }, [role, allowedLocations]);
+    }, [search, locationFilter, sortOrder, allowedLocations]);
 
     const loadMore = useCallback(() => {
         if (!loadingMore && hasMore) {
             fetchData(page + 1, true);
         }
     }, [loadingMore, hasMore, page, fetchData]);
+
+    // Debounced search
+    const handleSearchChange = useCallback((text: string) => {
+        setSearch(text);
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => {
+            fetchData(1, false);
+        }, 500);
+    }, [fetchData]);
+
+    // Handle filter/sort changes
+    const handleLocationFilterChange = useCallback((loc: string) => {
+        setLocationFilter(loc);
+    }, []);
+
+    const toggleSortOrder = useCallback(() => {
+        setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
+    }, []);
 
     useFocusEffect(
         useCallback(() => {
@@ -316,6 +339,70 @@ export default function OrdersScreen() {
                             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Completed</Text>
                         </View>
                     </View>
+                )}
+                {/* Search and Filters */}
+                {!selectionMode && (
+                    <>
+                        <View style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: theme.surface,
+                            borderRadius: 12,
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            marginTop: 12,
+                            borderWidth: 1,
+                            borderColor: theme.border,
+                        }}>
+                            <Ionicons name="search" size={20} color={theme.textSecondary} />
+                            <TextInput
+                                style={{ flex: 1, marginLeft: 8, color: theme.text, fontSize: 14 }}
+                                placeholder="Search orders by item name..."
+                                placeholderTextColor={theme.textSecondary}
+                                value={search}
+                                onChangeText={handleSearchChange}
+                            />
+                        </View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                            {/* Location Filter (Admin only) */}
+                            {isAdmin && (
+                                <View style={{ flexDirection: 'row', gap: 8 }}>
+                                    {['', 'Shop', 'Factory'].map(loc => (
+                                        <TouchableOpacity
+                                            key={loc || 'all'}
+                                            onPress={() => handleLocationFilterChange(loc)}
+                                            style={{
+                                                paddingHorizontal: 12,
+                                                paddingVertical: 6,
+                                                borderRadius: 16,
+                                                backgroundColor: locationFilter === loc ? theme.primary : theme.surface,
+                                                borderWidth: 1,
+                                                borderColor: locationFilter === loc ? theme.primary : theme.border,
+                                            }}
+                                        >
+                                            <Text style={{ color: locationFilter === loc ? '#fff' : theme.text, fontSize: 12 }}>
+                                                {loc || 'All'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+                            {/* Sort Toggle */}
+                            <TouchableOpacity
+                                onPress={toggleSortOrder}
+                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            >
+                                <Ionicons
+                                    name={sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'}
+                                    size={16}
+                                    color={theme.primary}
+                                />
+                                <Text style={{ color: theme.primary, fontSize: 12 }}>
+                                    {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </>
                 )}
             </View>
 

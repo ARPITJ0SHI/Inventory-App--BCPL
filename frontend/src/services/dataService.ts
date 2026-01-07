@@ -119,14 +119,14 @@ export const dataService = {
 
 
     // Price List
-    getPriceList: async (page: number = 1, limit: number = 50, search: string = '') => {
-        const cacheKey = `pricelist_${page}_${limit}_${search}`;
+    getPriceList: async (page: number = 1, limit: number = 50, search: string = '', sort: string = 'newest') => {
+        const cacheKey = `pricelist_${page}_${limit}_${search}_${sort}`;
         const cached = cache.get<{ data: PriceItem[]; pagination: any }>(cacheKey);
-        if (cached && !search) return cached; // Only cache non-search results or handle search caching carefully
+        if (cached && !search) return cached;
 
-        const response = await api.get(`/pricelist?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+        const response = await api.get(`/pricelist?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&sort=${sort}`);
         if (!search) cache.set(cacheKey, response.data);
-        return response.data; // { data: PriceItem[], pagination: {...} }
+        return response.data;
     },
 
     createPrice: async (data: { productName: string; price: number; category?: string }) => {
@@ -148,20 +148,22 @@ export const dataService = {
     },
 
     // Stock
-    getStock: async (page: number = 1, limit: number = 20, search: string = '') => {
-        const cacheKey = `stock_${page}_${limit}_${search}`;
+    getStock: async (page: number = 1, limit: number = 20, search: string = '', location: string = '', sort: string = 'newest') => {
+        const cacheKey = `stock_${page}_${limit}_${search}_${location}_${sort}`;
         const cached = cache.get<{ data: StockItem[]; pagination: any }>(cacheKey);
         if (cached && !search) return cached;
 
-        const response = await api.get(`/stock?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+        let url = `/stock?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&sort=${sort}`;
+        if (location) url += `&location=${encodeURIComponent(location)}`;
 
-        // Backend now returns flattened items directly!
+        const response = await api.get(url);
+
         const finalResponse = {
             data: response.data.data || response.data,
             pagination: response.data.pagination
         };
 
-        if (!search) cache.set(cacheKey, finalResponse);
+        if (!search && !location) cache.set(cacheKey, finalResponse);
         return finalResponse;
     },
 
@@ -178,14 +180,17 @@ export const dataService = {
     },
 
     // Orders
-    getOrders: async (page: number = 1, limit: number = 20, search: string = '') => {
-        const cacheKey = `orders_${page}_${limit}_${search}`;
+    getOrders: async (page: number = 1, limit: number = 20, search: string = '', location: string = '', sort: string = 'newest') => {
+        const cacheKey = `orders_${page}_${limit}_${search}_${location}_${sort}`;
         const cached = cache.get<{ data: Order[]; pagination: any }>(cacheKey);
-        if (cached && !search) return cached;
+        if (cached && !search && !location) return cached;
 
-        const response = await api.get(`/orders?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+        let url = `/orders?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&sort=${sort}`;
+        if (location) url += `&location=${encodeURIComponent(location)}`;
 
-        if (!search) cache.set(cacheKey, response.data);
+        const response = await api.get(url);
+
+        if (!search && !location) cache.set(cacheKey, response.data);
         return response.data;
     },
 

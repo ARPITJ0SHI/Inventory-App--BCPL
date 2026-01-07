@@ -32,6 +32,7 @@ export default function PriceListScreen() {
     const [loadingMore, setLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
     const [modalVisible, setModalVisible] = useState(false);
     const [editingItem, setEditingItem] = useState<PriceItem | null>(null);
     const { theme: themeMode } = useTheme();
@@ -49,7 +50,7 @@ export default function PriceListScreen() {
             if (pageNum === 1) setLoading(true);
             else setLoadingMore(true);
 
-            const response = await dataService.getPriceList(pageNum, 15);
+            const response = await dataService.getPriceList(pageNum, 15, search, sortOrder);
             const data = response.data || response;
             const pagination = response.pagination;
 
@@ -70,28 +71,31 @@ export default function PriceListScreen() {
             setLoadingMore(false);
             setIsInitialLoad(false);
         }
-    }, []);
+    }, [search, sortOrder]);
 
     const loadMore = useCallback(() => {
-        if (!loadingMore && hasMore && !search) {
+        if (!loadingMore && hasMore) {
             fetchData(page + 1, true);
         }
-    }, [loadingMore, hasMore, page, fetchData, search]);
+    }, [loadingMore, hasMore, page, fetchData]);
 
-    useEffect(() => {
-        fetchData(1, false);
-    }, [fetchData]);
-
+    // Debounced search - triggers server-side search
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => {
-            const filtered = items.filter(item =>
-                (item.productName || '').toLowerCase().includes(text.toLowerCase())
-            );
-            setFilteredItems(filtered);
-        }, 300);
-    }, [items]);
+            fetchData(1, false);
+        }, 500);
+    }, [fetchData]);
+
+    // Sort toggle
+    const toggleSortOrder = useCallback(() => {
+        setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
+    }, []);
+
+    useEffect(() => {
+        fetchData(1, false);
+    }, [fetchData]);
 
     const handleRefresh = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -211,6 +215,22 @@ export default function PriceListScreen() {
                         value={search}
                         onChangeText={handleSearchChange}
                     />
+                </View>
+                {/* Sort Toggle */}
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+                    <TouchableOpacity
+                        onPress={toggleSortOrder}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    >
+                        <Ionicons
+                            name={sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'}
+                            size={16}
+                            color={theme.primary}
+                        />
+                        <Text style={{ color: theme.primary, fontSize: 12 }}>
+                            {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             </View>
 
