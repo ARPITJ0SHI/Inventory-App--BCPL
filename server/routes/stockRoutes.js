@@ -4,33 +4,58 @@ const Stock = require('../models/Stock');
 const authMiddleware = require('../middleware/authMiddleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
 
-// Get all stocks (paginated, filtered by role)
+// Get all stocks (paginated items, filtered by role and search)
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { role } = req.user;
-        const { page = 1, limit = 20 } = req.query;
+        const { page = 1, limit = 20, search } = req.query;
         const pageNum = parseInt(page);
-        const limitNum = Math.min(parseInt(limit), 50); // Max 50 per page
+        const limitNum = Math.min(parseInt(limit), 50);
         const skip = (pageNum - 1) * limitNum;
 
-        let filter = {};
+        let locationFilter = {};
 
         // Role Logic
-        if (role === 'factory_manager') filter = { location: { $in: ['Factory', 'Trade'] } };
-        if (role === 'shop_manager') filter = { location: { $in: ['Shop', 'Godown'] } };
-        // super_admin, viewer see all (empty filter)
+        if (role === 'factory_manager') locationFilter = { location: { $in: ['Factory', 'Trade'] } };
+        if (role === 'shop_manager') locationFilter = { location: { $in: ['Shop', 'Godown'] } };
+        // super_admin, viewer see all
 
-        // Get total count
-        const total = await Stock.countDocuments(filter);
+        // Fetch all relevant documents (small number of docs)
+        const stocks = await Stock.find(locationFilter).lean();
 
-        // Fetch paginated stocks
-        const stocks = await Stock.find(filter)
-            .skip(skip)
-            .limit(limitNum)
-            .lean();
+        // Flatten all items from location documents
+        let allItems = [];
+        stocks.forEach(doc => {
+            if (doc.items && Array.isArray(doc.items)) {
+                doc.items.forEach(item => {
+                    allItems.push({
+                        ...item,
+                        productName: item.name, // Frontend expects productName
+                        itemName: item.name,    // Alias
+                        location: doc.location,
+                        _id: item._id || `${doc.location}_${item.name}`
+                    });
+                });
+            }
+        });
+
+        // Filter by search
+        if (search) {
+            const searchLower = search.toLowerCase();
+            allItems = allItems.filter(item =>
+                (item.productName && item.productName.toLowerCase().includes(searchLower))
+            );
+        }
+
+        // Sort alphabetically by productName
+        allItems.sort((a, b) => (a.productName || '').localeCompare(b.productName || ''));
+
+        // Pagination
+        const total = allItems.length;
+        const paginatedItems = allItems.slice(skip, skip + limitNum);
 
         res.json({
-            data: stocks,
+            data: paginatedItems,
             pagination: {
                 page: pageNum,
                 limit: limitNum,
@@ -40,15 +65,14 @@ router.get('/', authMiddleware, async (req, res) => {
             }
         });
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: 'Server Error' });
     }
 });
 
-// Update or Create Stock (A & D can update all, B/C usually update their own via orders but maybe direct edit is requested?)
-// Assuming direct edit for MVP for enabled roles.
 // Update or Create Stock Item
 router.post('/update', authMiddleware, async (req, res) => {
-    const { location, itemName, quantity, unit } = req.body; // Added unit
+    const { location, itemName, quantity, unit } = req.body;
 
     try {
         let stock = await Stock.findOne({ location });
@@ -60,7 +84,7 @@ router.post('/update', authMiddleware, async (req, res) => {
         const itemIndex = stock.items.findIndex(i => i.name === itemName);
         if (itemIndex > -1) {
             stock.items[itemIndex].quantity = quantity;
-            if (unit) stock.items[itemIndex].unit = unit; // Update unit if provided
+            if (unit) stock.items[itemIndex].unit = unit;
         } else {
             stock.items.push({ name: itemName, quantity, unit: unit || 'kg' });
         }
@@ -110,14 +134,13 @@ router.post('/seed', async (req, res) => {
 
 // Bulk Delete Stock Items
 router.post('/bulk-delete', authMiddleware, async (req, res) => {
-    const { items } = req.body; // Array of { location, itemName }
+    const { items } = req.body;
 
     if (!items || !Array.isArray(items)) {
         return res.status(400).json({ message: 'Invalid items array' });
     }
 
     try {
-        // Group by location to minimize DB calls
         const itemsByLoc = {};
         for (const item of items) {
             if (!itemsByLoc[item.location]) itemsByLoc[item.location] = [];
