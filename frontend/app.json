@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Balaji App",
-    "slug": "balaji-app",
+    "slug": "bcpl",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -55,10 +55,12 @@
       "reactCompiler": true
     },
     "extra": {
-      "apiUrl": "YOUR_RENDER_URL/api",
+      "apiUrl": "https://inventory-app-bcpl.onrender.com/api",
       "eas": {
-        "projectId": "your-project-id-from-eas"
-      }
-    }
+        "projectId": "defebbca-04e9-44ec-803d-23c224d8b46f"
+      },
+      "router": {}
+    },
+    "owner": "arpitjoshi555s-organization"
   }
 }
