@@ -55,8 +55,8 @@ export const useRBAC = () => {
     };
 
     const canViewPriceList = () => {
-        // Everyone can view price list
-        return true;
+        // Only super_admin and khushal can view price list
+        return role === Role.SUPER_ADMIN || role === Role.KHUSHAL;
     };
 
     // User management - super_admin full CRUD, khushal read-only

@@ -5,7 +5,7 @@ import { Card } from '../../src/components/Card';
 import { dataService, Order } from '../../src/services/dataService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SkeletonCard } from '../../src/components/SkeletonLoader';
 import { useTheme } from '../../src/context/ThemeContext';
 import { useRBAC, LocationType } from '../../src/hooks/useRBAC';
@@ -48,9 +48,11 @@ export default function OrdersScreen() {
         }
     }, [role]);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchData();
+        }, [fetchData])
+    );
 
     const handleStatusUpdate = useCallback((item: Order) => {
         const location = (item.location || 'Shop') as LocationType;
