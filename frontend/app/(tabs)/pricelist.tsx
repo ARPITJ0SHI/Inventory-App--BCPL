@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { Colors } from '../../src/constants/Colors';
 import { Card } from '../../src/components/Card';
 import { dataService, PriceItem } from '../../src/services/dataService';
@@ -29,6 +29,9 @@ export default function PriceListScreen() {
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingItem, setEditingItem] = useState<PriceItem | null>(null);
     const { theme: themeMode } = useTheme();
@@ -41,23 +44,42 @@ export default function PriceListScreen() {
         defaultValues: { productName: '', price: '', category: '' }
     });
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (pageNum: number = 1, append: boolean = false) => {
         try {
-            setLoading(true);
-            const response = await dataService.getPriceList();
-            const data = response.data || response; // Handle paginated response
-            setItems(data);
-            setFilteredItems(data);
+            if (pageNum === 1) setLoading(true);
+            else setLoadingMore(true);
+
+            const response = await dataService.getPriceList(pageNum, 15);
+            const data = response.data || response;
+            const pagination = response.pagination;
+
+            if (append) {
+                setItems(prev => [...prev, ...data]);
+                setFilteredItems(prev => [...prev, ...data]);
+            } else {
+                setItems(data);
+                setFilteredItems(data);
+            }
+
+            setHasMore(pagination?.hasMore ?? false);
+            setPage(pageNum);
         } catch (error) {
             console.error(error);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
             setIsInitialLoad(false);
         }
     }, []);
 
+    const loadMore = useCallback(() => {
+        if (!loadingMore && hasMore && !search) {
+            fetchData(page + 1, true);
+        }
+    }, [loadingMore, hasMore, page, fetchData, search]);
+
     useEffect(() => {
-        fetchData();
+        fetchData(1, false);
     }, [fetchData]);
 
     const handleSearchChange = useCallback((text: string) => {
@@ -203,6 +225,15 @@ export default function PriceListScreen() {
                     removeClippedSubviews={true}
                     maxToRenderPerBatch={15}
                     windowSize={5}
+                    onEndReached={loadMore}
+                    onEndReachedThreshold={0.3}
+                    ListFooterComponent={
+                        loadingMore ? (
+                            <View style={{ padding: 20, alignItems: 'center' }}>
+                                <ActivityIndicator size="small" color={theme.primary} />
+                            </View>
+                        ) : null
+                    }
                     ListEmptyComponent={
                         !loading ? (
                             <View style={styles.emptyState}>

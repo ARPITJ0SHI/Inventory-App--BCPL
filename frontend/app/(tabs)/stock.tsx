@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, Modal, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Colors } from '../../src/constants/Colors';
 import { Card } from '../../src/components/Card';
 import { dataService, StockItem } from '../../src/services/dataService';
@@ -30,6 +30,9 @@ export default function StockScreen() {
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const { theme: themeMode } = useTheme();
     const theme = Colors[themeMode];
     const { role, canEditStock, getAllowedLocations } = useRBAC();
@@ -50,27 +53,47 @@ export default function StockScreen() {
         }
     });
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (pageNum: number = 1, append: boolean = false) => {
         try {
-            setLoading(true);
-            const response = await dataService.getStock();
-            const data = response.data || response; // Handle paginated response
+            if (pageNum === 1) setLoading(true);
+            else setLoadingMore(true);
+
+            const response = await dataService.getStock(pageNum, 15);
+            const data = response.data || response;
+            const pagination = response.pagination;
+
             // Filter by allowed locations
             const filtered = data.filter((item: StockItem) =>
                 allowedLocations.includes(item.location as LocationType)
             );
-            setItems(filtered);
-            setFilteredItems(filtered);
+
+            if (append) {
+                setItems(prev => [...prev, ...filtered]);
+                setFilteredItems(prev => [...prev, ...filtered]);
+            } else {
+                setItems(filtered);
+                setFilteredItems(filtered);
+            }
+
+            setHasMore(pagination?.hasMore ?? false);
+            setPage(pageNum);
         } catch (error) {
             console.error(error);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
             setIsInitialLoad(false);
         }
-    }, [role]);
+    }, [role, allowedLocations]);
+
+    const loadMore = useCallback(() => {
+        if (!loadingMore && hasMore && !search) {
+            fetchData(page + 1, true);
+        }
+    }, [loadingMore, hasMore, page, fetchData, search]);
 
     useEffect(() => {
-        fetchData();
+        fetchData(1, false);
     }, [fetchData]);
 
     // Debounced search
@@ -301,6 +324,15 @@ export default function StockScreen() {
                     removeClippedSubviews={true}
                     maxToRenderPerBatch={10}
                     windowSize={5}
+                    onEndReached={loadMore}
+                    onEndReachedThreshold={0.3}
+                    ListFooterComponent={
+                        loadingMore ? (
+                            <View style={{ padding: 20, alignItems: 'center' }}>
+                                <ActivityIndicator size="small" color={theme.primary} />
+                            </View>
+                        ) : null
+                    }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <Ionicons name="cube-outline" size={64} color={theme.textSecondary} />
