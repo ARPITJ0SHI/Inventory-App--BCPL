@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "220161678258",
+    "project_id": "inventory-app-bcpl",
+    "storage_bucket": "inventory-app-bcpl.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:220161678258:android:6dd5ebcbadc645ef74e2ab",
+        "android_client_info": {
+          "package_name": "com.balajiapp.inventory"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCi5Keg0OOJMMQEk_Ti-S_SKN-Er38tZJg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
