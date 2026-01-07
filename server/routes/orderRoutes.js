@@ -86,10 +86,11 @@ router.get('/', authMiddleware, async (req, res) => {
 
         let filter = {};
 
-        // Search filter
+        // Search filter (vendor name + item names)
         if (search) {
             const searchRegex = { $regex: search, $options: 'i' };
             const orConditions = [
+                { vendorName: searchRegex },
                 { 'items.name': searchRegex }
             ];
 

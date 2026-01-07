@@ -223,7 +223,7 @@ export default function OrdersScreen() {
                     <View style={styles.headerRow}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                             <Text style={[styles.orderId, { color: theme.text }]}>
-                                #{item._id.slice(-6).toUpperCase()}
+                                {item.vendorName || 'Unknown Vendor'}
                             </Text>
                             <View style={[
                                 styles.locationTag,

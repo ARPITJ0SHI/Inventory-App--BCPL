@@ -16,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 
 const orderSchema = z.object({
+    vendorName: z.string().min(1, "Vendor name is required"),
     location: z.enum(['Shop', 'Factory']),
     items: z.array(z.object({
         name: z.string().min(1, "Item name required"),
@@ -43,6 +44,7 @@ export default function CreateOrderScreen() {
     const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<OrderFormValues>({
         resolver: zodResolver(orderSchema),
         defaultValues: {
+            vendorName: '',
             location: defaultLocation,
             items: [{ name: '', quantity: '1', price: '0' }],
         },
@@ -96,6 +98,7 @@ export default function CreateOrderScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
             const formData = new FormData();
+            formData.append('vendorName', data.vendorName);
             formData.append('location', data.location);
 
             const formattedItems = data.items.map(item => ({
@@ -149,8 +152,18 @@ export default function CreateOrderScreen() {
 
             <ScrollView contentContainerStyle={styles.content}>
 
+                {/* Vendor Name */}
+                <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Vendor Name</Text>
+                <Input
+                    label=""
+                    name="vendorName"
+                    control={control}
+                    placeholder="Enter vendor/party name"
+                    error={errors.vendorName?.message}
+                />
+
                 {/* Location Selection */}
-                <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Location</Text>
+                <Text style={[styles.sectionLabel, { color: theme.textSecondary, marginTop: 16 }]}>Location</Text>
                 <View style={styles.locationRow}>
                     {(['Shop', 'Factory'] as const).map((loc) => {
                         const isSelected = currentLocation === loc;

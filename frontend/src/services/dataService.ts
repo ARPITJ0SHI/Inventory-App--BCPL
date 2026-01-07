@@ -39,6 +39,7 @@ export interface OrderImage {
 
 export interface Order {
     _id: string;
+    vendorName: string;
     items: OrderItem[];
     totalAmount: number;
     status: string;
