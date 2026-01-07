@@ -76,13 +76,18 @@ export default function OrdersScreen() {
         }
     }, [loadingMore, hasMore, page, fetchData]);
 
-    // Debounced search
+    // Fetch on filter/sort changes
+    useEffect(() => {
+        fetchData(1, false);
+    }, [locationFilter, sortOrder]);
+
+    // Debounced search (800ms delay)
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => {
             fetchData(1, false);
-        }, 500);
+        }, 800);
     }, [fetchData]);
 
     // Handle filter/sort changes

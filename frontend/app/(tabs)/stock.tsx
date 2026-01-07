@@ -95,26 +95,34 @@ export default function StockScreen() {
         }
     }, [loadingMore, hasMore, page, fetchData]);
 
+    // Fetch on filter/sort changes
     useEffect(() => {
         fetchData(1, false);
-    }, [fetchData]);
+    }, [locationFilter, sortOrder]);
 
-    // Debounced search - triggers server-side search
+    // Initial fetch
+    useEffect(() => {
+        fetchData(1, false);
+    }, []);
+
+    // Debounced search - triggers server-side search (800ms delay)
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => {
             fetchData(1, false);
-        }, 500);
+        }, 800);
     }, [fetchData]);
 
     // Handle filter/sort changes
     const handleLocationFilterChange = useCallback((loc: string) => {
         setLocationFilter(loc);
+        // useEffect above will trigger fetchData
     }, []);
 
     const toggleSortOrder = useCallback(() => {
         setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
+        // useEffect above will trigger fetchData
     }, []);
 
     const handleAdd = useCallback(() => {

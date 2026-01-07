@@ -79,23 +79,29 @@ export default function PriceListScreen() {
         }
     }, [loadingMore, hasMore, page, fetchData]);
 
-    // Debounced search - triggers server-side search
+    // Fetch on sort change
+    useEffect(() => {
+        fetchData(1, false);
+    }, [sortOrder]);
+
+    // Initial fetch
+    useEffect(() => {
+        fetchData(1, false);
+    }, []);
+
+    // Debounced search (800ms delay)
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => {
             fetchData(1, false);
-        }, 500);
+        }, 800);
     }, [fetchData]);
 
     // Sort toggle
     const toggleSortOrder = useCallback(() => {
         setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
     }, []);
-
-    useEffect(() => {
-        fetchData(1, false);
-    }, [fetchData]);
 
     const handleRefresh = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
