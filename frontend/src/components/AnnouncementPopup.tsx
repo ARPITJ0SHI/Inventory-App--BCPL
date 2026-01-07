@@ -141,37 +141,6 @@ export const AnnouncementPopup = React.memo(function AnnouncementPopup({
                     </ScrollView>
 
                     <View style={styles.actions}>
-                        {role === 'super_admin' && (
-                            <TouchableOpacity
-                                style={[styles.dismissBtn, { borderColor: theme.error, marginRight: 8 }]}
-                                onPress={() => {
-                                    Alert.alert('Delete Announcement', 'Are you sure?', [
-                                        { text: 'Cancel', style: 'cancel' },
-                                        {
-                                            text: 'Delete', style: 'destructive', onPress: async () => {
-                                                try {
-                                                    await dataService.deleteAnnouncement(current._id);
-                                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                                    // Move to next or close
-                                                    if (currentIndex < unseenAnnouncements.length - 1) {
-                                                        // Remove from list locally for smooth UX
-                                                        setUnseenAnnouncements(prev => prev.filter(a => a._id !== current._id));
-                                                        // Index stays same as next item shifts into place
-                                                    } else {
-                                                        setVisible(false);
-                                                        onDismiss();
-                                                    }
-                                                } catch (e) {
-                                                    Alert.alert("Error", "Failed to delete");
-                                                }
-                                            }
-                                        }
-                                    ]);
-                                }}
-                            >
-                                <Ionicons name="trash-outline" size={20} color={theme.error} />
-                            </TouchableOpacity>
-                        )}
                         {remaining > 1 && (
                             <TouchableOpacity
                                 style={[styles.dismissBtn, { borderColor: theme.border }]}

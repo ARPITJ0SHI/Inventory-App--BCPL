@@ -73,19 +73,39 @@ router.post('/', authMiddleware, upload.fields([
     }
 });
 
-// Get Orders
+// Get Orders (List - paginated, excludes heavy image data for speed)
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { role } = req.user;
+        const { page = 1, limit = 20 } = req.query;
+        const pageNum = parseInt(page);
+        const limitNum = Math.min(parseInt(limit), 50); // Max 50 per page
+        const skip = (pageNum - 1) * limitNum;
+
         let filter = {};
 
-        // Roles Logic:
-        // B (Factory) -> See Factory orders? Or only create? "All should be allowed to see all orders but B(Factory)+C(Shop) can only create respective."
-        // So everyone sees all orders.
-        // D & A sees all.
+        // Get total count for pagination metadata
+        const total = await Order.countDocuments(filter);
 
-        const orders = await Order.find(filter).populate('createdBy', 'username').sort({ createdAt: -1 });
-        res.json(orders);
+        // Fetch paginated orders
+        const orders = await Order.find(filter)
+            .select('-images') // Exclude images for list performance
+            .populate('createdBy', 'username')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limitNum)
+            .lean();
+
+        res.json({
+            data: orders,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total,
+                pages: Math.ceil(total / limitNum),
+                hasMore: pageNum * limitNum < total
+            }
+        });
     } catch (err) {
         res.status(500).json({ message: 'Server Error' });
     }

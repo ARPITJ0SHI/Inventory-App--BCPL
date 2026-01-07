@@ -28,5 +28,11 @@ const orderSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
+// Indexes for faster queries
+orderSchema.index({ createdAt: -1 }); // For sorting by newest first
+orderSchema.index({ status: 1 }); // For filtering by status
+orderSchema.index({ location: 1 }); // For filtering by location
+orderSchema.index({ createdBy: 1 }); // For user's orders
+
 module.exports = mongoose.model('Order', orderSchema);
 

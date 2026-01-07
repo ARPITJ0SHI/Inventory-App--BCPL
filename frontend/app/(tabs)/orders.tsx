@@ -34,7 +34,8 @@ export default function OrdersScreen() {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await dataService.getOrders();
+            const response = await dataService.getOrders();
+            const data = response.data || response; // Handle paginated response
             // Filter by allowed locations
             const filtered = data.filter((order: Order) =>
                 allowedLocations.includes((order.location || 'Shop') as LocationType)

@@ -119,28 +119,23 @@ export default function OrderDetailsScreen() {
                 </View>
 
                 {/* Images */}
-                <Text style={[styles.sectionTitle, { color: theme.textSecondary, marginTop: 24, paddingHorizontal: 4 }]}>Images</Text>
+                {order.images && order.images.length > 0 && (
+                    <>
+                        <Text style={[styles.sectionTitle, { color: theme.textSecondary, marginTop: 24, paddingHorizontal: 4 }]}>Images</Text>
 
-                {order.orderImage && (
-                    <View style={styles.imageCard}>
-                        <Text style={[styles.imageLabel, { color: theme.textSecondary }]}>Order Photo</Text>
-                        <Image
-                            source={{ uri: order.orderImage.startsWith('data:') ? order.orderImage : `data:image/jpeg;base64,${order.orderImage}` }}
-                            style={styles.image}
-                            resizeMode="cover"
-                        />
-                    </View>
-                )}
-
-                {order.parchiImage && (
-                    <View style={[styles.imageCard, { marginTop: 16 }]}>
-                        <Text style={[styles.imageLabel, { color: theme.textSecondary }]}>Parchi Photo</Text>
-                        <Image
-                            source={{ uri: order.parchiImage.startsWith('data:') ? order.parchiImage : `data:image/jpeg;base64,${order.parchiImage}` }}
-                            style={styles.image}
-                            resizeMode="cover"
-                        />
-                    </View>
+                        {order.images.map((img: { data: string; contentType: string; name: string }, index: number) => (
+                            <View key={index} style={[styles.imageCard, { marginTop: index > 0 ? 16 : 0 }]}>
+                                <Text style={[styles.imageLabel, { color: theme.textSecondary }]}>
+                                    {img.name === 'orderImage' ? 'Order Photo' : img.name === 'parchiImage' ? 'Parchi Photo' : 'Image'}
+                                </Text>
+                                <Image
+                                    source={{ uri: `data:${img.contentType || 'image/jpeg'};base64,${img.data}` }}
+                                    style={styles.image}
+                                    resizeMode="cover"
+                                />
+                            </View>
+                        ))}
+                    </>
                 )}
             </ScrollView>
         </SafeAreaView>

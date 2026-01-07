@@ -53,7 +53,8 @@ export default function StockScreen() {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await dataService.getStock();
+            const response = await dataService.getStock();
+            const data = response.data || response; // Handle paginated response
             // Filter by allowed locations
             const filtered = data.filter((item: StockItem) =>
                 allowedLocations.includes(item.location as LocationType)

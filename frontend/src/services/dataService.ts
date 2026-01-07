@@ -30,14 +30,19 @@ export interface OrderItem {
     unit?: string;
 }
 
+export interface OrderImage {
+    data: string;
+    contentType: string;
+    name: string;
+}
+
 export interface Order {
     _id: string;
     items: OrderItem[];
     totalAmount: number;
     status: string;
     location: string;
-    orderImage?: string;
-    parchiImage?: string;
+    images?: OrderImage[];
     createdAt: string;
 }
 
@@ -142,19 +147,21 @@ export const dataService = {
     },
 
     // Stock
-    getStock: async () => {
-        const cacheKey = 'stock';
-        const cached = cache.get<StockItem[]>(cacheKey);
+    getStock: async (page: number = 1, limit: number = 20) => {
+        const cacheKey = `stock_${page}_${limit}`;
+        const cached = cache.get<{ data: StockItem[]; pagination: any }>(cacheKey);
         if (cached) return cached;
 
-        const response = await api.get('/stock');
+        const response = await api.get(`/stock?page=${page}&limit=${limit}`);
+
         // Flatten nested structure: [ { location, items: [...] } ] -> StockItem[]
-        let result: StockItem[];
-        if (Array.isArray(response.data) && response.data.length > 0 && 'items' in response.data[0]) {
-            const flattened: StockItem[] = [];
-            response.data.forEach((doc: any) => {
+        let result: StockItem[] = [];
+        const rawData = response.data.data || response.data; // Handle paginated or raw
+
+        if (Array.isArray(rawData) && rawData.length > 0 && 'items' in rawData[0]) {
+            rawData.forEach((doc: any) => {
                 doc.items.forEach((item: any) => {
-                    flattened.push({
+                    result.push({
                         _id: item._id || Math.random().toString(),
                         productName: item.name,
                         quantity: item.quantity,
@@ -163,13 +170,17 @@ export const dataService = {
                     });
                 });
             });
-            result = flattened;
         } else {
-            result = response.data;
+            result = rawData;
         }
 
-        cache.set(cacheKey, result);
-        return result;
+        const finalResponse = {
+            data: result,
+            pagination: response.data.pagination || { page: 1, limit: 20, total: result.length, pages: 1, hasMore: false }
+        };
+
+        cache.set(cacheKey, finalResponse);
+        return finalResponse;
     },
 
     updateStock: async (location: string, itemName: string, quantity: number, unit?: string) => {
@@ -185,14 +196,14 @@ export const dataService = {
     },
 
     // Orders
-    getOrders: async () => {
-        const cacheKey = 'orders';
-        const cached = cache.get<Order[]>(cacheKey);
+    getOrders: async (page: number = 1, limit: number = 20) => {
+        const cacheKey = `orders_${page}_${limit}`;
+        const cached = cache.get<{ data: Order[]; pagination: any }>(cacheKey);
         if (cached) return cached;
 
-        const response = await api.get('/orders');
+        const response = await api.get(`/orders?page=${page}&limit=${limit}`);
         cache.set(cacheKey, response.data);
-        return response.data;
+        return response.data; // { data: Order[], pagination: {...} }
     },
 
     getOrder: async (id: string) => {

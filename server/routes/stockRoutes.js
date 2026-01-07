@@ -4,10 +4,15 @@ const Stock = require('../models/Stock');
 const authMiddleware = require('../middleware/authMiddleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
 
-// Get all stocks (Accessible to A & D) - or filtered by role
+// Get all stocks (paginated, filtered by role)
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { role } = req.user;
+        const { page = 1, limit = 20 } = req.query;
+        const pageNum = parseInt(page);
+        const limitNum = Math.min(parseInt(limit), 50); // Max 50 per page
+        const skip = (pageNum - 1) * limitNum;
+
         let filter = {};
 
         // Role Logic
@@ -15,8 +20,25 @@ router.get('/', authMiddleware, async (req, res) => {
         if (role === 'shop_manager') filter = { location: { $in: ['Shop', 'Godown'] } };
         // super_admin, viewer see all (empty filter)
 
-        const stocks = await Stock.find(filter);
-        res.json(stocks);
+        // Get total count
+        const total = await Stock.countDocuments(filter);
+
+        // Fetch paginated stocks
+        const stocks = await Stock.find(filter)
+            .skip(skip)
+            .limit(limitNum)
+            .lean();
+
+        res.json({
+            data: stocks,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total,
+                pages: Math.ceil(total / limitNum),
+                hasMore: pageNum * limitNum < total
+            }
+        });
     } catch (err) {
         res.status(500).json({ message: 'Server Error' });
     }

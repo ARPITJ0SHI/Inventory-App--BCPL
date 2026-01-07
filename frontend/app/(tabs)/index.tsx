@@ -12,6 +12,7 @@ import { AnnouncementPopup } from '../../src/components/AnnouncementPopup';
 import { Button } from '../../src/components/Button';
 import * as Haptics from 'expo-haptics';
 import { getUnreadAnnouncements, markAnnouncementsAsRead } from '../../src/services/notificationService';
+import { useRBAC } from '../../src/hooks/useRBAC';
 
 export default function Dashboard() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { theme: themeMode } = useTheme();
   const theme = Colors[themeMode];
+  const { role } = useRBAC();
 
   // Stats
   const [stats, setStats] = useState({ orders: 0, stockItems: 0, pending: 0 });
@@ -135,7 +137,31 @@ export default function Dashboard() {
             <Ionicons name="megaphone" size={16} color={theme.primary} />
           </View>
           <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
+              {role === 'super_admin' && (
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert('Delete Announcement', 'Are you sure?', [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete', style: 'destructive', onPress: async () => {
+                          try {
+                            await dataService.deleteAnnouncement(item._id);
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            setAnnouncements(prev => prev.filter(a => a._id !== item._id));
+                          } catch (e) {
+                            Alert.alert("Error", "Failed to delete");
+                          }
+                        }
+                      }
+                    ]);
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={20} color={theme.error} />
+                </TouchableOpacity>
+              )}
+            </View>
             <Text style={[styles.date, { color: theme.textSecondary }]}>
               {new Date(item.createdAt).toLocaleDateString('en-IN', {
                 day: 'numeric',
@@ -152,7 +178,7 @@ export default function Dashboard() {
         <Text style={[styles.cardBody, { color: theme.textSecondary }]}>{item.message}</Text>
       </Card>
     );
-  }, [theme]);
+  }, [theme, role]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
