@@ -17,7 +17,6 @@ const stockSchema = new mongoose.Schema({
     lastUpdated: { type: Date, default: Date.now }
 });
 
-// Index for location-based queries
-stockSchema.index({ location: 1 });
+// Note: location already has an index from 'unique: true'
 
 module.exports = mongoose.model('Stock', stockSchema);
