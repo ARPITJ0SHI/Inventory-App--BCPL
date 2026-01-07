@@ -118,14 +118,14 @@ export const dataService = {
 
 
     // Price List
-    getPriceList: async () => {
-        const cacheKey = 'pricelist';
-        const cached = cache.get<PriceItem[]>(cacheKey);
+    getPriceList: async (page: number = 1, limit: number = 50) => {
+        const cacheKey = `pricelist_${page}_${limit}`;
+        const cached = cache.get<{ data: PriceItem[]; pagination: any }>(cacheKey);
         if (cached) return cached;
 
-        const response = await api.get('/pricelist');
+        const response = await api.get(`/pricelist?page=${page}&limit=${limit}`);
         cache.set(cacheKey, response.data);
-        return response.data;
+        return response.data; // { data: PriceItem[], pagination: {...} }
     },
 
     createPrice: async (data: { productName: string; price: number; category?: string }) => {

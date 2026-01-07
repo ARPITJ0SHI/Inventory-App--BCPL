@@ -6,7 +6,7 @@ const { Expo } = require('expo-server-sdk');
 const User = require('../models/User');
 const expo = new Expo();
 
-const MAX_ANNOUNCEMENTS = 20;
+const MAX_ANNOUNCEMENTS = 4; // FIFO: auto-delete oldest when new one created
 
 // Get all announcements (non-expired, max 20, newest first)
 router.get('/', authMiddleware, async (req, res) => {

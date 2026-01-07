@@ -3,15 +3,38 @@ const router = express.Router();
 const PriceList = require('../models/PriceList');
 const authMiddleware = require('../middleware/authMiddleware');
 
-// Get all price items
+// Get all price items (paginated)
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        let priceList = await PriceList.findOne();
+        const { page = 1, limit = 20 } = req.query;
+        const pageNum = parseInt(page);
+        const limitNum = Math.min(parseInt(limit), 50);
+        const skip = (pageNum - 1) * limitNum;
+
+        let priceList = await PriceList.findOne().lean();
         if (!priceList) {
             priceList = new PriceList({ items: [] });
             await priceList.save();
+            return res.json({
+                data: [],
+                pagination: { page: 1, limit: limitNum, total: 0, pages: 0, hasMore: false }
+            });
         }
-        res.json(priceList.items);
+
+        const allItems = priceList.items || [];
+        const total = allItems.length;
+        const paginatedItems = allItems.slice(skip, skip + limitNum);
+
+        res.json({
+            data: paginatedItems,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total,
+                pages: Math.ceil(total / limitNum),
+                hasMore: pageNum * limitNum < total
+            }
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server Error' });

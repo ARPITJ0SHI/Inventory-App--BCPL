@@ -44,7 +44,8 @@ export default function PriceListScreen() {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await dataService.getPriceList();
+            const response = await dataService.getPriceList();
+            const data = response.data || response; // Handle paginated response
             setItems(data);
             setFilteredItems(data);
         } catch (error) {
