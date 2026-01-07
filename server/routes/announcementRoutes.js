@@ -97,4 +97,22 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 });
 
+// Delete Announcement (Super Admin only)
+router.delete('/:id', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.role !== 'super_admin') {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        const result = await Announcement.deleteOne({ _id: req.params.id });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ message: 'Announcement not found' });
+        }
+        res.json({ message: 'Announcement deleted' });
+    } catch (err) {
+        console.error('Error deleting announcement:', err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 module.exports = router;

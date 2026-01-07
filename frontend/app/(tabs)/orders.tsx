@@ -165,7 +165,7 @@ export default function OrdersScreen() {
             >
                 <TouchableOpacity
                     onLongPress={() => handleLongPress(item._id, location)}
-                    onPress={() => selectionMode ? toggleSelection(item._id) : null}
+                    onPress={() => selectionMode ? toggleSelection(item._id) : /* @ts-ignore */ router.push(`/orders/${item._id}`)}
                     activeOpacity={0.8}
                 >
                     {/* Status Badge */}

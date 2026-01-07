@@ -55,9 +55,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         console.log('Auth Check:', { token: !!token, role, segments, inAuthGroup });
 
-        // If we have a token and are in the auth group (login/register), go to tabs
-        if (token && inAuthGroup) {
-            router.replace('/(tabs)');
+        // If we have a token...
+        if (token) {
+            // 1. Navigate to tabs if in auth group
+            if (inAuthGroup) {
+                router.replace('/(tabs)');
+            }
+
+            // 2. Ensure Push Token is Registered (Silently)
+            // We do this here so it happens on app launch (auto-login) too
+            import('../services/notificationService').then(async ({ registerForPushNotificationsAsync, savePushTokenToServer }) => {
+                try {
+                    const pushToken = await registerForPushNotificationsAsync();
+                    if (pushToken) {
+                        await savePushTokenToServer(pushToken);
+                    }
+                } catch (error) {
+                    console.log('Silent push registration failed:', error);
+                }
+            });
         }
         // If we have NO token and are NOT in auth group, go to login
         else if (!token && !inAuthGroup) {

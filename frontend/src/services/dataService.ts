@@ -104,6 +104,14 @@ export const dataService = {
         return response.data;
     },
 
+    deleteAnnouncement: async (id: string) => {
+        const response = await api.delete(`/announcements/${id}`);
+        cache.invalidate('announcements');
+        return response.data;
+    },
+
+
+
     // Price List
     getPriceList: async () => {
         const cacheKey = 'pricelist';
@@ -184,6 +192,12 @@ export const dataService = {
 
         const response = await api.get('/orders');
         cache.set(cacheKey, response.data);
+        return response.data;
+    },
+
+    getOrder: async (id: string) => {
+        // No cache for details to ensure fresh data
+        const response = await api.get(`/orders/${id}`);
         return response.data;
     },
 

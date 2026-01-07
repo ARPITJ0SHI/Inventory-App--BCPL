@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
-import { Announcement } from '../services/dataService';
+import { Announcement, dataService } from '../services/dataService';
+import { useRBAC } from '../hooks/useRBAC';
 
 interface AnnouncementPopupProps {
     announcements: Announcement[];
@@ -21,6 +22,7 @@ export const AnnouncementPopup = React.memo(function AnnouncementPopup({
 }: AnnouncementPopupProps) {
     const { theme: themeMode } = useTheme();
     const theme = Colors[themeMode];
+    const { role } = useRBAC();
     const [unseenAnnouncements, setUnseenAnnouncements] = useState<Announcement[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [visible, setVisible] = useState(false);
@@ -138,8 +140,38 @@ export const AnnouncementPopup = React.memo(function AnnouncementPopup({
                         </Text>
                     </ScrollView>
 
-                    {/* Actions */}
                     <View style={styles.actions}>
+                        {role === 'super_admin' && (
+                            <TouchableOpacity
+                                style={[styles.dismissBtn, { borderColor: theme.error, marginRight: 8 }]}
+                                onPress={() => {
+                                    Alert.alert('Delete Announcement', 'Are you sure?', [
+                                        { text: 'Cancel', style: 'cancel' },
+                                        {
+                                            text: 'Delete', style: 'destructive', onPress: async () => {
+                                                try {
+                                                    await dataService.deleteAnnouncement(current._id);
+                                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                                    // Move to next or close
+                                                    if (currentIndex < unseenAnnouncements.length - 1) {
+                                                        // Remove from list locally for smooth UX
+                                                        setUnseenAnnouncements(prev => prev.filter(a => a._id !== current._id));
+                                                        // Index stays same as next item shifts into place
+                                                    } else {
+                                                        setVisible(false);
+                                                        onDismiss();
+                                                    }
+                                                } catch (e) {
+                                                    Alert.alert("Error", "Failed to delete");
+                                                }
+                                            }
+                                        }
+                                    ]);
+                                }}
+                            >
+                                <Ionicons name="trash-outline" size={20} color={theme.error} />
+                            </TouchableOpacity>
+                        )}
                         {remaining > 1 && (
                             <TouchableOpacity
                                 style={[styles.dismissBtn, { borderColor: theme.border }]}
