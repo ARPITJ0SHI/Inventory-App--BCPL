@@ -62,10 +62,16 @@ export default function StockScreen() {
             const data = response.data || response;
             const pagination = response.pagination;
 
+            console.log('Stock API Response:', JSON.stringify(response, null, 2));
+            console.log('Allowed Locations:', allowedLocations);
+            console.log('Raw Data Length:', data?.length);
+
             // Filter by allowed locations
-            const filtered = data.filter((item: StockItem) =>
+            const filtered = Array.isArray(data) ? data.filter((item: StockItem) =>
                 allowedLocations.includes(item.location as LocationType)
-            );
+            ) : [];
+
+            console.log('Filtered Data Length:', filtered.length);
 
             if (append) {
                 setItems(prev => [...prev, ...filtered]);
@@ -78,7 +84,7 @@ export default function StockScreen() {
             setHasMore(pagination?.hasMore ?? false);
             setPage(pageNum);
         } catch (error) {
-            console.error(error);
+            console.error('Stock fetchData error:', error);
         } finally {
             setLoading(false);
             setLoadingMore(false);
