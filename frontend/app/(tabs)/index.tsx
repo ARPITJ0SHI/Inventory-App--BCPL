@@ -1,0 +1,400 @@
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Colors } from '../../src/constants/Colors';
+import { Card } from '../../src/components/Card';
+import { dataService, Announcement } from '../../src/services/dataService';
+import { MotiView } from 'moti';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { SkeletonCard } from '../../src/components/SkeletonLoader';
+import { useTheme } from '../../src/context/ThemeContext';
+import { AnnouncementPopup } from '../../src/components/AnnouncementPopup';
+import { Button } from '../../src/components/Button';
+import * as Haptics from 'expo-haptics';
+import { getUnreadAnnouncements, markAnnouncementsAsRead } from '../../src/services/notificationService';
+
+export default function Dashboard() {
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [unreadAnnouncements, setUnreadAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [showPopup, setShowPopup] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newMessage, setNewMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { theme: themeMode } = useTheme();
+  const theme = Colors[themeMode];
+
+  // Stats
+  const [stats, setStats] = useState({ orders: 0, stockItems: 0, pending: 0 });
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [announcementsData, ordersData, stockData] = await Promise.all([
+        dataService.getAnnouncements(),
+        dataService.getOrders().catch(() => []),
+        dataService.getStock().catch(() => []),
+      ]);
+
+      setAnnouncements(announcementsData || []);
+
+      // Get unread announcements
+      const unread = await getUnreadAnnouncements<Announcement>(announcementsData || []);
+      setUnreadAnnouncements(unread);
+
+      // Calculate stats
+      const totalOrders = ordersData?.length || 0;
+      const totalStock = stockData?.length || 0;
+      const pendingOrders = ordersData?.filter((o: any) => o.status === 'pending')?.length || 0;
+      setStats({ orders: totalOrders, stockItems: totalStock, pending: pendingOrders });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+      setIsInitialLoad(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Track if popup has been shown this session
+  const hasShownPopup = React.useRef(false);
+
+  // Show popup when unread announcements are loaded for first time
+  useEffect(() => {
+    if (!isInitialLoad && !loading && unreadAnnouncements.length > 0 && !hasShownPopup.current) {
+      hasShownPopup.current = true;
+      // Small delay to ensure smooth transition after initial render
+      const timer = setTimeout(() => setShowPopup(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isInitialLoad, loading, unreadAnnouncements.length]);
+
+  // Handle popup dismiss - mark as read
+  const handlePopupDismiss = useCallback(async () => {
+    setShowPopup(false);
+    // Mark all unread as read
+    const ids = unreadAnnouncements.map(a => a._id);
+    await markAnnouncementsAsRead(ids);
+    setUnreadAnnouncements([]);
+  }, [unreadAnnouncements]);
+
+  const handleRefresh = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    dataService.invalidateCache('announcements');
+    fetchData();
+  }, [fetchData]);
+
+  const handleCreateAnnouncement = useCallback(async () => {
+    if (!newTitle.trim() || !newMessage.trim()) {
+      Alert.alert('Error', 'Please enter both title and message');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await dataService.createAnnouncement({
+        title: newTitle.trim(),
+        message: newMessage.trim()
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Success', 'Announcement posted!');
+      setShowCreateModal(false);
+      setNewTitle('');
+      setNewMessage('');
+      fetchData();
+    } catch (e) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', 'Failed to post announcement');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [newTitle, newMessage, fetchData]);
+
+  const SkeletonList = useMemo(() => (
+    <View>
+      {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+    </View>
+  ), []);
+
+  const renderAnnouncement = useCallback((item: Announcement, index: number) => {
+    // Calculate days remaining (7 day max)
+    const createdDate = new Date(item.createdAt);
+    const expiryDate = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const daysRemaining = Math.ceil((expiryDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+
+    return (
+      <Card key={item._id} delay={index * 100}>
+        <View style={styles.announcementHeader}>
+          <View style={[styles.iconBadge, { backgroundColor: theme.primary + '20' }]}>
+            <Ionicons name="megaphone" size={16} color={theme.primary} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 8 }}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
+            <Text style={[styles.date, { color: theme.textSecondary }]}>
+              {new Date(item.createdAt).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short'
+              })}
+              {daysRemaining > 0 && (
+                <Text style={{ color: daysRemaining <= 2 ? theme.error : theme.textSecondary }}>
+                  {' '}• {daysRemaining}d left
+                </Text>
+              )}
+            </Text>
+          </View>
+        </View>
+        <Text style={[styles.cardBody, { color: theme.textSecondary }]}>{item.message}</Text>
+      </Card>
+    );
+  }, [theme]);
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={handleRefresh} />}
+      >
+        <MotiView
+          from={{ opacity: 0, translateY: -10 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          style={styles.header}
+        >
+          <View>
+            <Text style={[styles.greeting, { color: theme.textSecondary }]}>Hello, Staff</Text>
+            <Text style={[styles.title, { color: theme.text }]}>Dashboard</Text>
+          </View>
+        </MotiView>
+
+        {/* Quick Stats */}
+        <View style={styles.statsRow}>
+          <MotiView
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 100 }}
+            style={[styles.statCard, { backgroundColor: theme.primary + '15' }]}
+          >
+            <Ionicons name="receipt-outline" size={24} color={theme.primary} />
+            <Text style={[styles.statValue, { color: theme.text }]}>{stats.orders}</Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Orders</Text>
+          </MotiView>
+
+          <MotiView
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 200 }}
+            style={[styles.statCard, { backgroundColor: theme.success + '15' }]}
+          >
+            <Ionicons name="cube-outline" size={24} color={theme.success} />
+            <Text style={[styles.statValue, { color: theme.text }]}>{stats.stockItems}</Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Stock Items</Text>
+          </MotiView>
+
+          <MotiView
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 300 }}
+            style={[styles.statCard, { backgroundColor: theme.error + '15' }]}
+          >
+            <Ionicons name="time-outline" size={24} color={theme.error} />
+            <Text style={[styles.statValue, { color: theme.text }]}>{stats.pending}</Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Pending</Text>
+          </MotiView>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Announcements</Text>
+          <View style={[styles.countBadge, { backgroundColor: theme.primary + '20' }]}>
+            <Text style={[styles.countText, { color: theme.primary }]}>{announcements.length}</Text>
+          </View>
+        </View>
+
+        {isInitialLoad ? SkeletonList : (
+          (!announcements || announcements.length === 0) ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="notifications-off-outline" size={48} color={theme.textSecondary} />
+              <Text style={{ color: theme.textSecondary, marginTop: 8 }}>No announcements yet</Text>
+            </View>
+          ) : (
+            announcements.map((item, index) => renderAnnouncement(item, index))
+          )
+        )}
+      </ScrollView>
+
+      {/* FAB to create announcement */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: theme.primary }]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setShowCreateModal(true);
+        }}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+
+      {/* Announcement Popup */}
+      {showPopup && unreadAnnouncements.length > 0 && (
+        <AnnouncementPopup
+          announcements={unreadAnnouncements}
+          onDismiss={handlePopupDismiss}
+        />
+      )}
+
+      {/* Create Announcement Modal */}
+      <Modal
+        visible={showCreateModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>New Announcement</Text>
+            <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
+              Visible to all users for 7 days
+            </Text>
+
+            <TextInput
+              style={[styles.input, {
+                backgroundColor: theme.background,
+                color: theme.text,
+                borderColor: theme.border
+              }]}
+              placeholder="Title"
+              placeholderTextColor={theme.textSecondary}
+              value={newTitle}
+              onChangeText={setNewTitle}
+              maxLength={100}
+            />
+
+            <TextInput
+              style={[styles.input, styles.messageInput, {
+                backgroundColor: theme.background,
+                color: theme.text,
+                borderColor: theme.border
+              }]}
+              placeholder="Message"
+              placeholderTextColor={theme.textSecondary}
+              value={newMessage}
+              onChangeText={setNewMessage}
+              multiline
+              numberOfLines={4}
+              maxLength={500}
+            />
+
+            <View style={[styles.modalActions, { borderTopColor: theme.border }]}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: theme.border }]}
+                onPress={() => setShowCreateModal(false)}
+              >
+                <Text style={{ color: theme.text, fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: theme.primary }]}
+                onPress={handleCreateAnnouncement}
+                disabled={isSubmitting}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>
+                  {isSubmitting ? 'Posting...' : 'Post'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { padding: 20, paddingBottom: 100 },
+  header: { marginBottom: 24 },
+  greeting: { fontSize: 16, fontWeight: '500' },
+  title: { fontSize: 32, fontWeight: 'bold' },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  sectionTitle: { fontSize: 20, fontWeight: '700' },
+  countBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  countText: { fontSize: 12, fontWeight: 'bold' },
+  announcementHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  iconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  date: { fontSize: 11, marginTop: 2 },
+  cardTitle: { fontSize: 16, fontWeight: '600' },
+  cardBody: { fontSize: 14, lineHeight: 20 },
+  emptyState: { alignItems: 'center', padding: 40 },
+  fab: {
+    position: 'absolute',
+    bottom: 90,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
+  modalSubtitle: { fontSize: 12, marginBottom: 16 },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  messageInput: {
+    height: 120,
+    textAlignVertical: 'top',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    gap: 12,
+  },
+  modalBtn: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  statCard: { flex: 1, padding: 14, borderRadius: 14, alignItems: 'center' },
+  statValue: { fontSize: 22, fontWeight: 'bold', marginTop: 8 },
+  statLabel: { fontSize: 11, fontWeight: '500', marginTop: 2 },
+});

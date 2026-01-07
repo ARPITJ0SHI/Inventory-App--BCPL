@@ -1,0 +1,18 @@
+# Render Blueprint - Deploy with one click
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: balaji-app-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: MONGODB_URI
+        sync: false  # Set manually in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true  # Auto-generate secure value
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health
