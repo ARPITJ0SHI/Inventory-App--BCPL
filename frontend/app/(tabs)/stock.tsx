@@ -123,8 +123,8 @@ export default function StockScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setEditingItem(item);
         setValue('location', item.location as 'Shop' | 'Factory');
-        setValue('itemName', item.productName);
-        setValue('quantity', item.quantity.toString());
+        setValue('itemName', item.productName || item.itemName || '');
+        setValue('quantity', (item.quantity || 0).toString());
         setValue('unit', item.unit || 'kg');
         setModalVisible(true);
     }, [setValue, canEditStock]);

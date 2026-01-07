@@ -34,10 +34,10 @@ export default function Dashboard() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [announcementsData, ordersData, stockData] = await Promise.all([
+      const [announcementsData, ordersResponse, stockResponse] = await Promise.all([
         dataService.getAnnouncements(),
-        dataService.getOrders().catch(() => []),
-        dataService.getStock().catch(() => []),
+        dataService.getOrders().catch(() => ({ data: [] })),
+        dataService.getStock().catch(() => ({ data: [] })),
       ]);
 
       setAnnouncements(announcementsData || []);
@@ -46,11 +46,23 @@ export default function Dashboard() {
       const unread = await getUnreadAnnouncements<Announcement>(announcementsData || []);
       setUnreadAnnouncements(unread);
 
+      // Handle paginated or raw responses
+      const ordersData = ordersResponse.data || ordersResponse || [];
+      const stockData = stockResponse.data || stockResponse || [];
+
       // Calculate stats
-      const totalOrders = ordersData?.length || 0;
-      const totalStock = stockData?.length || 0;
-      const pendingOrders = ordersData?.filter((o: any) => o.status === 'pending')?.length || 0;
-      setStats({ orders: totalOrders, stockItems: totalStock, pending: pendingOrders });
+      const totalOrders = Array.isArray(ordersData) ? ordersData.length : (ordersResponse.pagination?.total || 0);
+      const totalStock = Array.isArray(stockData) ? stockData.length : (stockResponse.pagination?.total || 0);
+
+      const ordersArray = Array.isArray(ordersData) ? ordersData : [];
+      const pendingOrders = ordersArray.filter((o: any) => o.status === 'pending').length;
+
+      // For total counts, if we have pagination metadata, use that for accuracy!
+      // Otherwise fallback to loaded length
+      const finalTotalOrders = ordersResponse.pagination?.total ?? ordersArray.length;
+      const finalTotalStock = stockResponse.pagination?.total ?? (Array.isArray(stockData) ? stockData.length : 0);
+
+      setStats({ orders: finalTotalOrders, stockItems: finalTotalStock, pending: pendingOrders });
     } catch (error) {
       console.error(error);
     } finally {

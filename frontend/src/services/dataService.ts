@@ -18,6 +18,7 @@ export interface PriceItem {
 export interface StockItem {
     _id: string;
     productName: string;
+    itemName?: string; // Backend alias
     quantity: number;
     unit?: string;
     location: string;
