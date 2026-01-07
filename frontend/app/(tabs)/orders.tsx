@@ -29,7 +29,12 @@ export default function OrdersScreen() {
     const { canEditOrders, canUpdateOrderStatus, getAllowedLocations, role, Role } = useRBAC();
     const allowedLocations = useMemo(() => getAllowedLocations(), [role]);
     const isAdmin = role === Role.SUPER_ADMIN || role === Role.KHUSHAL;
-    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const searchRef = useRef(search); // Ref to avoid fetchData recreation on search change
+
+    // Keep searchRef in sync
+    useEffect(() => {
+        searchRef.current = search;
+    }, [search]);
 
     // Stats calculations
     const stats = useMemo(() => {
@@ -44,7 +49,8 @@ export default function OrdersScreen() {
             if (pageNum === 1) setLoading(true);
             else setLoadingMore(true);
 
-            const response = await dataService.getOrders(pageNum, 15, search, locationFilter, sortOrder);
+            // Use searchRef.current to avoid dependency on search state
+            const response = await dataService.getOrders(pageNum, 15, searchRef.current, locationFilter, sortOrder);
             const data = response.data || response;
             const pagination = response.pagination;
 
@@ -68,7 +74,7 @@ export default function OrdersScreen() {
             setLoadingMore(false);
             setIsInitialLoad(false);
         }
-    }, [search, locationFilter, sortOrder, allowedLocations]);
+    }, [locationFilter, sortOrder, allowedLocations]); // Removed 'search' dependency
 
     const loadMore = useCallback(() => {
         if (!loadingMore && hasMore) {
