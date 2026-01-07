@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Colors } from '../../src/constants/Colors';
 import { Card } from '../../src/components/Card';
 import { dataService, Order } from '../../src/services/dataService';
@@ -15,6 +15,9 @@ export default function OrdersScreen() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [selectionMode, setSelectionMode] = useState(false);
     const router = useRouter();
@@ -31,27 +34,46 @@ export default function OrdersScreen() {
         return { total, completed, pending };
     }, [orders]);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (pageNum: number = 1, append: boolean = false) => {
         try {
-            setLoading(true);
-            const response = await dataService.getOrders();
-            const data = response.data || response; // Handle paginated response
+            if (pageNum === 1) setLoading(true);
+            else setLoadingMore(true);
+
+            const response = await dataService.getOrders(pageNum, 15);
+            const data = response.data || response;
+            const pagination = response.pagination;
+
             // Filter by allowed locations
             const filtered = data.filter((order: Order) =>
                 allowedLocations.includes((order.location || 'Shop') as LocationType)
             );
-            setOrders(filtered);
+
+            if (append) {
+                setOrders(prev => [...prev, ...filtered]);
+            } else {
+                setOrders(filtered);
+            }
+
+            setHasMore(pagination?.hasMore ?? false);
+            setPage(pageNum);
         } catch (error) {
             console.error(error);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
             setIsInitialLoad(false);
         }
-    }, [role]);
+    }, [role, allowedLocations]);
+
+    const loadMore = useCallback(() => {
+        if (!loadingMore && hasMore) {
+            fetchData(page + 1, true);
+        }
+    }, [loadingMore, hasMore, page, fetchData]);
 
     useFocusEffect(
         useCallback(() => {
-            fetchData();
+            fetchData(1, false);
         }, [fetchData])
     );
 
@@ -316,6 +338,15 @@ export default function OrdersScreen() {
                     removeClippedSubviews={true}
                     maxToRenderPerBatch={10}
                     windowSize={5}
+                    onEndReached={loadMore}
+                    onEndReachedThreshold={0.3}
+                    ListFooterComponent={
+                        loadingMore ? (
+                            <View style={{ padding: 20, alignItems: 'center' }}>
+                                <ActivityIndicator size="small" color={theme.primary} />
+                            </View>
+                        ) : null
+                    }
                 />
             )}
 
