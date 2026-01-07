@@ -43,7 +43,7 @@ router.post('/', authMiddleware, upload.fields([
     { name: 'parchiImage', maxCount: 1 }
 ]), async (req, res) => {
     try {
-        const { location, items, totalAmount } = req.body;
+        const { vendorName, location, items, totalAmount } = req.body;
         const parsedItems = JSON.parse(items);
 
         // Process and compress images
@@ -58,6 +58,7 @@ router.post('/', authMiddleware, upload.fields([
         }
 
         const order = new Order({
+            vendorName,
             location,
             items: parsedItems,
             totalAmount: Number(totalAmount) || 0,
