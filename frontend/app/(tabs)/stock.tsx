@@ -315,7 +315,7 @@ export default function StockScreen() {
 
             {isInitialLoad ? SkeletonList : (
                 <FlatList
-                    data={filteredItems}
+                    data={items}
                     renderItem={renderItem}
                     keyExtractor={keyExtractor}
                     contentContainerStyle={[styles.listContent, filteredItems.length === 0 && { flex: 1 }]}

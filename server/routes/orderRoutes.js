@@ -73,16 +73,31 @@ router.post('/', authMiddleware, upload.fields([
     }
 });
 
+const mongoose = require('mongoose');
+
 // Get Orders (List - paginated, excludes heavy image data for speed)
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { role } = req.user;
-        const { page = 1, limit = 20 } = req.query;
+        const { page = 1, limit = 20, search } = req.query;
         const pageNum = parseInt(page);
         const limitNum = Math.min(parseInt(limit), 50); // Max 50 per page
         const skip = (pageNum - 1) * limitNum;
 
         let filter = {};
+
+        if (search) {
+            const searchRegex = { $regex: search, $options: 'i' };
+            const orConditions = [
+                { 'items.name': searchRegex }
+            ];
+
+            if (mongoose.Types.ObjectId.isValid(search)) {
+                orConditions.push({ _id: search });
+            }
+
+            filter.$or = orConditions;
+        }
 
         // Get total count for pagination metadata
         const total = await Order.countDocuments(filter);

@@ -6,7 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 // Get all price items (paginated)
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        const { page = 1, limit = 20 } = req.query;
+        const { page = 1, limit = 20, search } = req.query;
         const pageNum = parseInt(page);
         const limitNum = Math.min(parseInt(limit), 50);
         const skip = (pageNum - 1) * limitNum;
@@ -21,7 +21,17 @@ router.get('/', authMiddleware, async (req, res) => {
             });
         }
 
-        const allItems = priceList.items || [];
+        let allItems = priceList.items || [];
+
+        // Server-side filtering
+        if (search) {
+            const searchLower = search.toLowerCase();
+            allItems = allItems.filter(item =>
+                (item.productName && item.productName.toLowerCase().includes(searchLower)) ||
+                (item.category && item.category.toLowerCase().includes(searchLower))
+            );
+        }
+
         const total = allItems.length;
         const paginatedItems = allItems.slice(skip, skip + limitNum);
 
