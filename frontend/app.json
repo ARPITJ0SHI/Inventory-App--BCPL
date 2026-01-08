@@ -56,8 +56,7 @@
       "reactCompiler": true
     },
     "extra": {
-      "apiUrl": "http://192.168.1.13:5000/api",
-      "_apiUrl_production": "https://inventory-app-bcpl.onrender.com/api",
+      "apiUrl": "https://inventory-app-bcpl.onrender.com/api",
       "eas": {
         "projectId": "defebbca-04e9-44ec-803d-23c224d8b46f"
       },

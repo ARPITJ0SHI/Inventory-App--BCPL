@@ -2,8 +2,11 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
-// Get API URL from app.json extra config or fallback to local
-const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.13:5000/api';
+// Get API URL - Use Local for Dev, Production for Build
+const PROD_URL = Constants.expoConfig?.extra?.apiUrl;
+const DEV_URL = 'http://192.168.1.13:5000/api'; // Your local IP
+
+const API_URL = __DEV__ ? DEV_URL : (PROD_URL || DEV_URL);
 
 const api = axios.create({
     baseURL: API_URL,
