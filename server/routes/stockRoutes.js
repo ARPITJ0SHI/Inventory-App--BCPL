@@ -15,10 +15,12 @@ router.get('/', authMiddleware, async (req, res) => {
 
         let locationFilter = {};
 
-        // Role Logic
-        if (role === 'factory_manager') locationFilter = { location: 'Factory' };
-        if (role === 'shop_manager') locationFilter = { location: 'Shop' };
-        // super_admin, khushal, viewer see all
+        // Role Logic - Managers can now view all locations
+        // factory_manager and shop_manager NO LONGER restricted here for viewing
+        // Restriction happens on frontend for edit/delete actions, and backend write routes
+
+        // Only filter if explicitly requested in query
+        // locationFilter = {};
 
         // Fetch all relevant documents (small number of docs)
         const stocks = await Stock.find(locationFilter).lean();

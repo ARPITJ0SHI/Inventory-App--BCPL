@@ -28,11 +28,9 @@ export const useRBAC = () => {
     };
 
     const canViewStock = (location: LocationType) => {
-        if (!role) return false;
-        if (role === Role.SUPER_ADMIN || role === Role.KHUSHAL) return true;
-        if (role === Role.FACTORY_MANAGER && location === 'Factory') return true;
-        if (role === Role.SHOP_MANAGER && location === 'Shop') return true;
-        return false;
+        // Everyone (who has a valid role) can view stock now
+        // Managers can view both Shop and Factory, but can only edit their own
+        return !!role;
     };
 
     // Order permissions
@@ -70,11 +68,11 @@ export const useRBAC = () => {
 
     // Get allowed locations for current user
     const getAllowedLocations = (): LocationType[] => {
-        if (role === Role.SUPER_ADMIN || role === Role.KHUSHAL) {
+        // All these roles can switch views between Shop and Factory
+        if (role === Role.SUPER_ADMIN || role === Role.KHUSHAL ||
+            role === Role.FACTORY_MANAGER || role === Role.SHOP_MANAGER) {
             return ['Shop', 'Factory'];
         }
-        if (role === Role.FACTORY_MANAGER) return ['Factory'];
-        if (role === Role.SHOP_MANAGER) return ['Shop'];
         return [];
     };
 

@@ -337,8 +337,8 @@ export default function StockScreen() {
                         </View>
                         {/* Filter Row */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                            {/* Location Filter (Admin only) */}
-                            {isAdmin && (
+                            {/* Location Filter (Admins & Managers) */}
+                            {allowedLocations.length > 1 && (
                                 <View style={{ flexDirection: 'row', gap: 8 }}>
                                     {['', 'Shop', 'Factory'].map(loc => (
                                         <TouchableOpacity
