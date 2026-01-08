@@ -31,7 +31,7 @@ export default function CreateOrderScreen() {
     const router = useRouter();
     const { theme: themeMode } = useTheme();
     const theme = Colors[themeMode];
-    const { role, getAllowedLocations, canEditOrders } = useRBAC();
+    const { role, getAllowedLocations, getWritableLocations, canEditOrders } = useRBAC();
     const allowedLocations = useMemo(() => getAllowedLocations(), [role]);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -167,8 +167,9 @@ export default function CreateOrderScreen() {
                 <View style={styles.locationRow}>
                     {(['Shop', 'Factory'] as const).map((loc) => {
                         const isSelected = currentLocation === loc;
-                        const isAllowed = allowedLocations.includes(loc);
-                        const canSelect = canSwitchLocation || isAllowed;
+                        // Use getWritableLocations - restricts managers to their own location
+                        const writable = getWritableLocations();
+                        const canSelect = writable.includes(loc);
 
                         return (
                             <TouchableOpacity

@@ -66,13 +66,23 @@ export const useRBAC = () => {
         return role === Role.SUPER_ADMIN || role === Role.KHUSHAL;
     };
 
-    // Get allowed locations for current user
-    const getAllowedLocations = (): LocationType[] => {
+    // Get locations user can VIEW (for filters)
+    const getViewableLocations = (): LocationType[] => {
         // All these roles can switch views between Shop and Factory
         if (role === Role.SUPER_ADMIN || role === Role.KHUSHAL ||
             role === Role.FACTORY_MANAGER || role === Role.SHOP_MANAGER) {
             return ['Shop', 'Factory'];
         }
+        return [];
+    };
+
+    // Get locations user can WRITE to (for creating/editing)
+    const getWritableLocations = (): LocationType[] => {
+        if (role === Role.SUPER_ADMIN || role === Role.KHUSHAL) {
+            return ['Shop', 'Factory'];
+        }
+        if (role === Role.FACTORY_MANAGER) return ['Factory'];
+        if (role === Role.SHOP_MANAGER) return ['Shop'];
         return [];
     };
 
@@ -87,7 +97,10 @@ export const useRBAC = () => {
         canViewPriceList,
         canManageUsers,
         canViewUsers,
-        getAllowedLocations,
+        getViewableLocations,
+        getWritableLocations,
+        // Backward compatibility (deprecated, alias to viewable for filters)
+        getAllowedLocations: getViewableLocations,
         Role,
     };
 };

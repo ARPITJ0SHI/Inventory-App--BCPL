@@ -44,6 +44,18 @@ router.post('/', authMiddleware, upload.fields([
 ]), async (req, res) => {
     try {
         const { vendorName, location, items, totalAmount } = req.body;
+        console.log(`[DEBUG] Order Create - User Role: ${req.user.role}, Target Location: ${location}`);
+
+        // Enforce Location Access
+        if (req.user.role === 'factory_manager' && location !== 'Factory') {
+            console.log('[DEBUG] Blocked Factory Manager from creating non-Factory order');
+            return res.status(403).json({ message: 'Access Denied: You can only create orders for Factory' });
+        }
+        if (req.user.role === 'shop_manager' && location !== 'Shop') {
+            console.log('[DEBUG] Blocked Shop Manager from creating non-Shop order');
+            return res.status(403).json({ message: 'Access Denied: You can only create orders for Shop' });
+        }
+
         const parsedItems = JSON.parse(items);
 
         // Process and compress images
@@ -166,6 +178,14 @@ router.patch('/:id', authMiddleware, async (req, res) => {
         if (status) order.status = status;
         if (totalAmount) order.totalAmount = totalAmount;
         if (items) order.items = items;
+
+        // Enforce Location Access (Write Security)
+        if (req.user.role === 'factory_manager' && order.location !== 'Factory') {
+            return res.status(403).json({ message: 'Access Denied: You cannot edit Factory orders' });
+        }
+        if (req.user.role === 'shop_manager' && order.location !== 'Shop') {
+            return res.status(403).json({ message: 'Access Denied: You cannot edit Shop orders' });
+        }
 
         await order.save();
         res.json(order);

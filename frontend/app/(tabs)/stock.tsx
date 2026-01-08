@@ -37,7 +37,7 @@ export default function StockScreen() {
     const [hasMore, setHasMore] = useState(true);
     const { theme: themeMode } = useTheme();
     const theme = Colors[themeMode];
-    const { role, canEditStock, getAllowedLocations, Role } = useRBAC();
+    const { role, canEditStock, getAllowedLocations, getWritableLocations, Role } = useRBAC();
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const allowedLocations = useMemo(() => getAllowedLocations(), [role]);
     const isAdmin = role === Role.SUPER_ADMIN || role === Role.KHUSHAL;
@@ -128,9 +128,11 @@ export default function StockScreen() {
     const handleAdd = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setEditingItem(null);
-        reset({ location: allowedLocations[0] || 'Shop', itemName: '', quantity: '0', unit: 'kg' });
+        // Use getWritableLocations here - only default to locations they can write to
+        const writable = getWritableLocations();
+        reset({ location: writable[0] || 'Shop', itemName: '', quantity: '0', unit: 'kg' });
         setModalVisible(true);
-    }, [reset, allowedLocations]);
+    }, [reset, getWritableLocations]);
 
     const handleEdit = useCallback((item: StockItem) => {
         if (!canEditStock(item.location as LocationType)) {
@@ -441,7 +443,9 @@ export default function StockScreen() {
                                 <View style={styles.locationRow}>
                                     {(['Shop', 'Factory'] as const).map((loc) => {
                                         const isSelected = currentLocation === loc;
-                                        const isAllowed = allowedLocations.includes(loc);
+                                        // Use getWritableLocations for validation in Add/Edit form
+                                        const writable = getWritableLocations();
+                                        const isAllowed = writable.includes(loc);
                                         return (
                                             <TouchableOpacity
                                                 key={loc}

@@ -88,6 +88,14 @@ router.post('/update', authMiddleware, async (req, res) => {
     const { location, itemName, quantity, unit } = req.body;
 
     try {
+        // Enforce Location Access
+        if (req.user.role === 'factory_manager' && location !== 'Factory') {
+            return res.status(403).json({ message: 'Access Denied: You can only manage Factory stock' });
+        }
+        if (req.user.role === 'shop_manager' && location !== 'Shop') {
+            return res.status(403).json({ message: 'Access Denied: You can only manage Shop stock' });
+        }
+
         let stock = await Stock.findOne({ location });
 
         if (!stock) {
@@ -116,6 +124,14 @@ router.delete('/:location/:itemName', authMiddleware, async (req, res) => {
     const { location, itemName } = req.params;
 
     try {
+        // Enforce Location Access
+        if (req.user.role === 'factory_manager' && location !== 'Factory') {
+            return res.status(403).json({ message: 'Access Denied' });
+        }
+        if (req.user.role === 'shop_manager' && location !== 'Shop') {
+            return res.status(403).json({ message: 'Access Denied' });
+        }
+
         let stock = await Stock.findOne({ location });
         if (!stock) return res.status(404).json({ message: 'Location not found' });
 
