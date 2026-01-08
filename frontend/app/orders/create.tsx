@@ -39,7 +39,9 @@ export default function CreateOrderScreen() {
     const [orderImage, setOrderImage] = useState<string | null>(null);
     const [parchiImage, setParchiImage] = useState<string | null>(null);
 
-    const defaultLocation = allowedLocations[0] || 'Shop';
+    // Default to the first location the user can WRITE to
+    const writableLocations = useMemo(() => getWritableLocations(), [role]);
+    const defaultLocation = writableLocations[0] || 'Shop';
 
     const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<OrderFormValues>({
         resolver: zodResolver(orderSchema),
