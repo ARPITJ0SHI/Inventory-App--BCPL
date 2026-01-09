@@ -82,26 +82,36 @@ export default function OrderListScreen() {
         }
     }, [locationFilter, sortOrder, allowedLocations, orders.length]);
 
-    // Initial Load & Polling
-    useEffect(() => {
-        let intervalId: any;
+    // Refs for Polling
+    const locationFilterRef = useRef(locationFilter);
+    const fetchDataRef = useRef(fetchData);
 
+    // Update Refs
+    useEffect(() => {
+        locationFilterRef.current = locationFilter;
+        fetchDataRef.current = fetchData;
+    }, [locationFilter, fetchData]);
+
+    // 1. Initial Load (Run ONCE)
+    useEffect(() => {
         const init = async () => {
             await loadCachedData();
             await fetchData(1, false, true);
         };
         init();
 
-        // One minute polling
-        intervalId = setInterval(() => {
-            if (!searchRef.current && !locationFilter) {
-                console.log('Auto-refreshing orders...');
-                fetchData(1, false, true);
-            }
-        }, 60000);
+        return () => { };
+    }, []);
 
-        return () => clearInterval(intervalId);
-    }, [fetchData, locationFilter]);
+    // Subscribe to Global Updates
+    useEffect(() => {
+        const unsubscribe = dataService.subscribe('orders', () => {
+            if (!searchRef.current && !locationFilterRef.current) {
+                fetchDataRef.current(1, false, true);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
 
 

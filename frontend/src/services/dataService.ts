@@ -235,6 +235,48 @@ export const dataService = {
         return response.data;
     },
 
+    // Event Subscription System
+    listeners: {} as { [key: string]: Function[] },
+
+    subscribe(event: 'stock' | 'orders' | 'pricelist', callback: Function) {
+        if (!this.listeners[event]) this.listeners[event] = [];
+        this.listeners[event].push(callback);
+        return () => {
+            this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+        };
+    },
+
+    notify(event: 'stock' | 'orders' | 'pricelist', data?: any) {
+        if (this.listeners[event]) {
+            this.listeners[event].forEach(cb => cb(data));
+        }
+    },
+
+    // Background Fetch (Global Poller)
+    backgroundFetchAll: async () => {
+        try {
+            console.log('[GlobalPoller] Fetching all data...');
+
+            // 1. Stock (Invalidate first to force fresh fetch)
+            cache.invalidate('stock');
+            await dataService.getStock(1, 20, '', '', 'newest');
+            dataService.notify('stock');
+
+            // 2. Orders
+            cache.invalidate('orders');
+            await dataService.getOrders(1, 20, '', '', 'newest');
+            dataService.notify('orders');
+
+            // 3. PriceList
+            cache.invalidate('pricelist');
+            await dataService.getPriceList(1, 50, '', 'newest');
+            dataService.notify('pricelist');
+
+        } catch (e) {
+            console.error('[GlobalPoller] Error:', e);
+        }
+    },
+
     // Dev
     seedData: async () => {
         const response = await api.post('/seed/reset', {});

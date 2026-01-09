@@ -118,29 +118,38 @@ export default function StockScreen() {
         fetchData(1, false);
     }, [locationFilter, sortOrder]);
 
-    // Initial Load & Polling
-    useEffect(() => {
-        let intervalId: any; // Using any to avoid NodeJS.Timeout vs number conflicts in RN
+    // Refs for Polling
+    const searchRef = useRef(search);
+    const locationFilterRef = useRef(locationFilter);
+    const fetchDataRef = useRef(fetchData);
 
+    // Update Refs
+    useEffect(() => {
+        searchRef.current = search;
+        locationFilterRef.current = locationFilter;
+        fetchDataRef.current = fetchData;
+    }, [search, locationFilter, fetchData]);
+
+    // 1. Initial Load (Run ONCE)
+    useEffect(() => {
         const init = async () => {
-            // 1. Load Cache First (Instant)
             await loadCachedData();
-            // 2. Fetch Fresh Data
             await fetchData(1, false, true);
         };
-
         init();
 
-        // 3. Auto-Refresh every 60 seconds (1 min)
-        intervalId = setInterval(() => {
-            if (!search && !locationFilter) { // Only poll default view
-                console.log('Auto-refreshing stock...');
-                fetchData(1, false, true);
-            }
-        }, 60000);
+        return () => { };
+    }, []);
 
-        return () => clearInterval(intervalId);
-    }, [fetchData]); // Re-run if query params change, but fetchData depends on them so it works out
+    // 2. Subscribe to Global Updates (No local polling)
+    useEffect(() => {
+        const unsubscribe = dataService.subscribe('stock', () => {
+            if (!searchRef.current && !locationFilterRef.current) {
+                fetchDataRef.current(1, false, true);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     // Manual Refresh
     const onRefresh = useCallback(() => {

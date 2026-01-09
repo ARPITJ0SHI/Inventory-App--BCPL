@@ -97,26 +97,36 @@ export default function PriceListScreen() {
         }
     }, [loadingMore, hasMore, page, fetchData]);
 
-    // Initial Load & Polling
-    useEffect(() => {
-        let intervalId: any;
+    // Refs for Polling
+    const searchRef = useRef(search);
+    const fetchDataRef = useRef(fetchData);
 
+    // Update Refs
+    useEffect(() => {
+        searchRef.current = search;
+        fetchDataRef.current = fetchData;
+    }, [search, fetchData]);
+
+    // 1. Initial Load (Run ONCE)
+    useEffect(() => {
         const init = async () => {
             await loadCachedData();
             await fetchData(1, false, true);
         };
         init();
 
-        // One minute polling
-        intervalId = setInterval(() => {
-            if (!search) {
-                console.log('Auto-refreshing pricelist...');
-                fetchData(1, false, true);
-            }
-        }, 60000);
+        return () => { };
+    }, []);
 
-        return () => clearInterval(intervalId);
-    }, [fetchData, search]); // Added search to dependencies for polling condition
+    // 2. Subscribe to Global Updates
+    useEffect(() => {
+        const unsubscribe = dataService.subscribe('pricelist', () => {
+            if (!searchRef.current) {
+                fetchDataRef.current(1, false, true);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     // Fetch on sort change
     useEffect(() => {

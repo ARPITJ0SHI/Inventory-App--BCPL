@@ -8,21 +8,19 @@ import { useRBAC, Role } from '../../src/hooks/useRBAC';
 import * as ScreenCapture from 'expo-screen-capture';
 import { useEffect } from 'react';
 
+import { useGlobalPolling } from '../../src/hooks/useGlobalPolling';
+
 export default function TabLayout() {
   const { theme: themeMode } = useTheme();
   const theme = Colors[themeMode];
   const { role, canViewPriceList } = useRBAC();
 
+  // Activate Global Polling (Every 2 minutes)
+  useGlobalPolling(120000);
+
   useEffect(() => {
     // Prevent screen capture/recording for ALL users
     ScreenCapture.preventScreenCaptureAsync();
-
-    // Cleanup on unmount (optional, but good practice if needed)
-    return () => {
-      // ScreenCapture.allowScreenCaptureAsync(); 
-      // Keeping it prevented even on unmount usually, unless we really want to allow it elsewhere.
-      // But typically for app protection we keep it. 
-    };
   }, []);
 
   return (
