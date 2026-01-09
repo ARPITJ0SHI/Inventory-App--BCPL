@@ -24,6 +24,8 @@ const stockSchema = z.object({
 
 type StockFormValues = z.infer<typeof stockSchema>;
 
+import { cacheService, CACHE_KEYS } from '../../src/services/cacheService';
+
 export default function StockScreen() {
     const [items, setItems] = useState<StockItem[]>([]);
     const [filteredItems, setFilteredItems] = useState<StockItem[]>([]);
@@ -42,9 +44,10 @@ export default function StockScreen() {
     const allowedLocations = useMemo(() => getAllowedLocations(), [role]);
     const isAdmin = role === Role.SUPER_ADMIN || role === Role.KHUSHAL;
 
-    // Modal State
+    // State
     const [modalVisible, setModalVisible] = useState(false);
     const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
 
     const { control, handleSubmit, setValue, reset, watch, formState: { errors } } = useForm<StockFormValues>({
         resolver: zodResolver(stockSchema),
@@ -56,10 +59,21 @@ export default function StockScreen() {
         }
     });
 
-    const fetchData = useCallback(async (pageNum: number = 1, append: boolean = false) => {
+    // Cache & Polling Logic
+    const loadCachedData = async () => {
+        const cached = await cacheService.load(CACHE_KEYS.STOCK);
+        if (cached && Array.isArray(cached) && isInitialLoad) {
+            setItems(cached);
+            setFilteredItems(cached);
+            setLoading(false); // Show saved data immediately
+        }
+    };
+
+    const fetchData = useCallback(async (pageNum: number = 1, append: boolean = false, isBackground: boolean = false) => {
         try {
-            if (pageNum === 1) setLoading(true);
-            else setLoadingMore(true);
+            // Only show loader if we don't have data and it's not a background refresh
+            if (pageNum === 1 && !isBackground && items.length === 0) setLoading(true);
+            else if (pageNum > 1) setLoadingMore(true);
 
             const response = await dataService.getStock(pageNum, 15, search, locationFilter, sortOrder);
             const data = response.data || response;
@@ -76,6 +90,10 @@ export default function StockScreen() {
             } else {
                 setItems(filtered);
                 setFilteredItems(filtered);
+                // Save to Cache (Page 1 only)
+                if (pageNum === 1 && !search && !locationFilter) {
+                    cacheService.save(CACHE_KEYS.STOCK, filtered);
+                }
             }
 
             setHasMore(pagination?.hasMore ?? false);
@@ -87,7 +105,7 @@ export default function StockScreen() {
             setLoadingMore(false);
             setIsInitialLoad(false);
         }
-    }, [search, locationFilter, sortOrder, allowedLocations]);
+    }, [search, locationFilter, sortOrder, allowedLocations, items.length]);
 
     const loadMore = useCallback(() => {
         if (!loadingMore && hasMore) {
@@ -100,10 +118,36 @@ export default function StockScreen() {
         fetchData(1, false);
     }, [locationFilter, sortOrder]);
 
-    // Initial fetch
+    // Initial Load & Polling
     useEffect(() => {
-        fetchData(1, false);
-    }, []);
+        let intervalId: any; // Using any to avoid NodeJS.Timeout vs number conflicts in RN
+
+        const init = async () => {
+            // 1. Load Cache First (Instant)
+            await loadCachedData();
+            // 2. Fetch Fresh Data
+            await fetchData(1, false, true);
+        };
+
+        init();
+
+        // 3. Auto-Refresh every 60 seconds (1 min)
+        intervalId = setInterval(() => {
+            if (!search && !locationFilter) { // Only poll default view
+                console.log('Auto-refreshing stock...');
+                fetchData(1, false, true);
+            }
+        }, 60000);
+
+        return () => clearInterval(intervalId);
+    }, [fetchData]); // Re-run if query params change, but fetchData depends on them so it works out
+
+    // Manual Refresh
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        fetchData(1, false).finally(() => setRefreshing(false));
+    }, [fetchData]);
 
     // Search - only triggers when user presses Enter or search button
     const handleSearchChange = useCallback((text: string) => {

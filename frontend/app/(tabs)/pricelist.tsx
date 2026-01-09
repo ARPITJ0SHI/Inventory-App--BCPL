@@ -23,6 +23,8 @@ const priceSchema = z.object({
 
 type PriceFormValues = z.infer<typeof priceSchema>;
 
+import { cacheService, CACHE_KEYS } from '../../src/services/cacheService';
+
 export default function PriceListScreen() {
     const [items, setItems] = useState<PriceItem[]>([]);
     const [filteredItems, setFilteredItems] = useState<PriceItem[]>([]);
@@ -33,6 +35,8 @@ export default function PriceListScreen() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+    const [refreshing, setRefreshing] = useState(false);
+
     const [modalVisible, setModalVisible] = useState(false);
     const [editingItem, setEditingItem] = useState<PriceItem | null>(null);
     const { theme: themeMode } = useTheme();
@@ -45,10 +49,20 @@ export default function PriceListScreen() {
         defaultValues: { productName: '', price: '', category: '' }
     });
 
-    const fetchData = useCallback(async (pageNum: number = 1, append: boolean = false) => {
+    // Cache logic
+    const loadCachedData = async () => {
+        const cached = await cacheService.load(CACHE_KEYS.PRICELIST);
+        if (cached && Array.isArray(cached) && isInitialLoad) {
+            setItems(cached);
+            setFilteredItems(cached);
+            setLoading(false);
+        }
+    };
+
+    const fetchData = useCallback(async (pageNum: number = 1, append: boolean = false, isBackground: boolean = false) => {
         try {
-            if (pageNum === 1) setLoading(true);
-            else setLoadingMore(true);
+            if (pageNum === 1 && !isBackground && items.length === 0) setLoading(true);
+            else if (pageNum > 1) setLoadingMore(true);
 
             const response = await dataService.getPriceList(pageNum, 15, search, sortOrder);
             const data = response.data || response;
@@ -60,18 +74,22 @@ export default function PriceListScreen() {
             } else {
                 setItems(data);
                 setFilteredItems(data);
+                // Save Cache (Page 1)
+                if (pageNum === 1 && !search) {
+                    cacheService.save(CACHE_KEYS.PRICELIST, data);
+                }
             }
 
             setHasMore(pagination?.hasMore ?? false);
             setPage(pageNum);
         } catch (error) {
-            console.error(error);
+            console.error('PriceList fetchData error:', error);
         } finally {
             setLoading(false);
             setLoadingMore(false);
             setIsInitialLoad(false);
         }
-    }, [search, sortOrder]);
+    }, [search, sortOrder, items.length]);
 
     const loadMore = useCallback(() => {
         if (!loadingMore && hasMore) {
@@ -79,15 +97,31 @@ export default function PriceListScreen() {
         }
     }, [loadingMore, hasMore, page, fetchData]);
 
+    // Initial Load & Polling
+    useEffect(() => {
+        let intervalId: any;
+
+        const init = async () => {
+            await loadCachedData();
+            await fetchData(1, false, true);
+        };
+        init();
+
+        // One minute polling
+        intervalId = setInterval(() => {
+            if (!search) {
+                console.log('Auto-refreshing pricelist...');
+                fetchData(1, false, true);
+            }
+        }, 60000);
+
+        return () => clearInterval(intervalId);
+    }, [fetchData, search]); // Added search to dependencies for polling condition
+
     // Fetch on sort change
     useEffect(() => {
         fetchData(1, false);
-    }, [sortOrder]);
-
-    // Initial fetch
-    useEffect(() => {
-        fetchData(1, false);
-    }, []);
+    }, [sortOrder, fetchData]); // Added fetchData to dependencies
 
     // Search - only triggers when user presses Enter or search button
     const handleSearchChange = useCallback((text: string) => {

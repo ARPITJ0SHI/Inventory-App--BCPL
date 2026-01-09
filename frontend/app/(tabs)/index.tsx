@@ -36,8 +36,8 @@ export default function Dashboard() {
       setLoading(true);
       const [announcementsData, ordersResponse, stockResponse] = await Promise.all([
         dataService.getAnnouncements(),
-        dataService.getOrders().catch(() => ({ data: [] })),
-        dataService.getStock().catch(() => ({ data: [] })),
+        dataService.getOrders().catch(() => ({ data: [], pagination: null })),
+        dataService.getStock().catch(() => ({ data: [], pagination: null })),
       ]);
 
       setAnnouncements(announcementsData || []);

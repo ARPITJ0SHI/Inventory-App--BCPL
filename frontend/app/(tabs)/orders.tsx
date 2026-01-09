@@ -11,8 +11,12 @@ import { useTheme } from '../../src/context/ThemeContext';
 import { useRBAC, LocationType } from '../../src/hooks/useRBAC';
 import * as Haptics from 'expo-haptics';
 
-export default function OrdersScreen() {
+import { cacheService, CACHE_KEYS } from '../../src/services/cacheService';
+
+export default function OrderListScreen() {
+    // State
     const [orders, setOrders] = useState<Order[]>([]);
+    const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
     const [search, setSearch] = useState('');
     const [locationFilter, setLocationFilter] = useState<string>(''); // '' = All
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
@@ -21,6 +25,7 @@ export default function OrdersScreen() {
     const [loadingMore, setLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [selectionMode, setSelectionMode] = useState(false);
     const router = useRouter();
@@ -29,7 +34,76 @@ export default function OrdersScreen() {
     const { canEditOrders, canUpdateOrderStatus, getAllowedLocations, role, Role } = useRBAC();
     const allowedLocations = useMemo(() => getAllowedLocations(), [role]);
     const isAdmin = role === Role.SUPER_ADMIN || role === Role.KHUSHAL;
-    const searchRef = useRef(search); // Ref to avoid fetchData recreation on search change
+    const searchRef = useRef(''); // Ref to avoid fetchData recreation on search change
+    // Cache logic
+    const loadCachedData = async () => {
+        const cached = await cacheService.load(CACHE_KEYS.ORDERS);
+        if (cached && Array.isArray(cached) && isInitialLoad) {
+            setOrders(cached);
+            setFilteredOrders(cached);
+            setLoading(false);
+        }
+    };
+
+    const fetchData = useCallback(async (pageNum: number = 1, append: boolean = false, isBackground: boolean = false) => {
+        try {
+            if (pageNum === 1 && !isBackground && orders.length === 0) setLoading(true);
+            else if (pageNum > 1) setLoadingMore(true);
+
+            const response = await dataService.getOrders(pageNum, 15, searchRef.current, locationFilter, sortOrder);
+            const data = response.data || response;
+            const pagination = response.pagination;
+
+            // Filter for managers (Safety check)
+            const filtered = Array.isArray(data) ? data.filter((order: Order) =>
+                allowedLocations.includes((order.location || 'Shop') as LocationType)
+            ) : [];
+
+            if (append) {
+                setOrders(prev => [...prev, ...filtered]);
+                setFilteredOrders(prev => [...prev, ...filtered]);
+            } else {
+                setOrders(filtered);
+                setFilteredOrders(filtered);
+                // Save Cache (Page 1)
+                if (pageNum === 1 && !searchRef.current && !locationFilter) {
+                    cacheService.save(CACHE_KEYS.ORDERS, filtered);
+                }
+            }
+
+            setHasMore(pagination?.hasMore ?? false);
+            setPage(pageNum);
+        } catch (error) {
+            console.error('Order fetchData error:', error);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+            setIsInitialLoad(false);
+        }
+    }, [locationFilter, sortOrder, allowedLocations, orders.length]);
+
+    // Initial Load & Polling
+    useEffect(() => {
+        let intervalId: any;
+
+        const init = async () => {
+            await loadCachedData();
+            await fetchData(1, false, true);
+        };
+        init();
+
+        // One minute polling
+        intervalId = setInterval(() => {
+            if (!searchRef.current && !locationFilter) {
+                console.log('Auto-refreshing orders...');
+                fetchData(1, false, true);
+            }
+        }, 60000);
+
+        return () => clearInterval(intervalId);
+    }, [fetchData, locationFilter]);
+
+
 
     // Keep searchRef in sync
     useEffect(() => {
@@ -43,38 +117,6 @@ export default function OrdersScreen() {
         const pending = total - completed;
         return { total, completed, pending };
     }, [orders]);
-
-    const fetchData = useCallback(async (pageNum: number = 1, append: boolean = false) => {
-        try {
-            if (pageNum === 1) setLoading(true);
-            else setLoadingMore(true);
-
-            // Use searchRef.current to avoid dependency on search state
-            const response = await dataService.getOrders(pageNum, 15, searchRef.current, locationFilter, sortOrder);
-            const data = response.data || response;
-            const pagination = response.pagination;
-
-            // Filter by allowed locations (safety check)
-            const filtered = Array.isArray(data) ? data.filter((order: Order) =>
-                allowedLocations.includes((order.location || 'Shop') as LocationType)
-            ) : [];
-
-            if (append) {
-                setOrders(prev => [...prev, ...filtered]);
-            } else {
-                setOrders(filtered);
-            }
-
-            setHasMore(pagination?.hasMore ?? false);
-            setPage(pageNum);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-            setLoadingMore(false);
-            setIsInitialLoad(false);
-        }
-    }, [locationFilter, sortOrder, allowedLocations]); // Removed 'search' dependency
 
     const loadMore = useCallback(() => {
         if (!loadingMore && hasMore) {
@@ -199,10 +241,11 @@ export default function OrdersScreen() {
         ]);
     }, [selectedIds, fetchData]);
 
-    const handleRefresh = useCallback(() => {
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         dataService.invalidateCache('orders');
-        fetchData();
+        fetchData(1, false).finally(() => setRefreshing(false));
     }, [fetchData]);
 
     const renderItem = useCallback(({ item, index }: { item: Order, index: number }) => {
@@ -432,8 +475,8 @@ export default function OrdersScreen() {
                     renderItem={renderItem}
                     keyExtractor={keyExtractor}
                     contentContainerStyle={styles.listContent}
-                    refreshing={loading}
-                    onRefresh={handleRefresh}
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
                     ListEmptyComponent={
                         !loading ? (
                             <View style={styles.emptyState}>
