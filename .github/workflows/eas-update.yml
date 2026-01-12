@@ -1,16 +1,13 @@
 name: EAS Update
 
 on:
-  workflow_dispatch:  # Manual trigger enabled for OTA updates
+  workflow_dispatch: {}
 
 jobs:
   update:
     name: Publish EAS Update
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,7 +27,9 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
+        working-directory: ./frontend
         run: npm ci
 
       - name: Publish Update
+        working-directory: ./frontend
         run: eas update --auto --branch production --message "Automated update from GitHub Actions: ${{ github.sha }}"
