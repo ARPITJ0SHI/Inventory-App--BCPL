@@ -1,7 +1,7 @@
 name: EAS Update
 
 on:
-  workflow_dispatch:  # Manual trigger only
+  workflow_dispatch:  # Manual trigger enabled for OTA updates
 
 jobs:
   update:
