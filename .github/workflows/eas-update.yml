@@ -32,4 +32,5 @@ jobs:
 
       - name: Publish Update
         working-directory: ./frontend
-        run: eas update --auto --branch production --message "Automated update from GitHub Actions: ${{ github.sha }}"
+        run: |
+          eas update --auto --branch production --message "Automated update from GitHub Actions: ${{ github.sha }}"
