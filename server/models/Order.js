@@ -14,21 +14,25 @@ const orderSchema = new mongoose.Schema({
     items: [
         {
             name: { type: String, required: true },
-            price: { type: Number }, // Optional for some roles
-            quantity: { type: Number }
+            price: { type: Number },
+            quantity: { type: Number },
+            gst: { type: Number, default: 0 } // GST Percentage
         }
     ],
-    images: [{
-        data: { type: String }, // Base64 encoded image
-        contentType: { type: String }, // e.g., 'image/jpeg'
-        name: { type: String } // Original field name (orderImage/parchiImage)
-    }],
+    images: [
+        {
+            data: { type: String }, // Base64
+            contentType: { type: String },
+            name: { type: String }
+        }
+    ],
     status: {
         type: String,
         enum: ['pending', 'completed', 'cancelled'],
         default: 'pending'
     },
     totalAmount: { type: Number, default: 0 },
+    deposit: { type: Number, default: 0 }, // Advance payment
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now }
 });

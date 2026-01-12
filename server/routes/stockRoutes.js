@@ -55,12 +55,24 @@ router.get('/', authMiddleware, async (req, res) => {
         }
 
         // Sort by newest/oldest (default: newest)
-        const sortOrder = req.query.sort === 'oldest' ? 1 : -1;
+        // Sort by newest/oldest (default: newest)
+        const sortOrder = req.query.sort;
+
         allItems.sort((a, b) => {
-            // Use _id creation time as proxy for creation date
-            const aTime = a._id?.getTimestamp?.() || new Date(0);
-            const bTime = b._id?.getTimestamp?.() || new Date(0);
-            return sortOrder * (bTime - aTime);
+            if (sortOrder === 'asc') {
+                return a.itemName.localeCompare(b.itemName);
+            } else if (sortOrder === 'desc_alpha') {
+                return b.itemName.localeCompare(a.itemName);
+            } else if (sortOrder === 'oldest') {
+                const aTime = a._id?.getTimestamp?.() || new Date(0);
+                const bTime = b._id?.getTimestamp?.() || new Date(0);
+                return aTime - bTime;
+            } else {
+                // Newest (default)
+                const aTime = a._id?.getTimestamp?.() || new Date(0);
+                const bTime = b._id?.getTimestamp?.() || new Date(0);
+                return bTime - aTime;
+            }
         });
 
         // Pagination
@@ -136,6 +148,45 @@ router.delete('/:location/:itemName', authMiddleware, async (req, res) => {
         if (!stock) return res.status(404).json({ message: 'Location not found' });
 
         stock.items = stock.items.filter(i => i.name !== itemName);
+        stock.lastUpdated = Date.now();
+        await stock.save();
+
+        res.json(stock);
+    } catch (err) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// Rename Stock Item
+router.post('/rename', authMiddleware, async (req, res) => {
+    const { location, oldItemName, newItemName } = req.body;
+
+    try {
+        // Enforce Location Access
+        if (req.user.role === 'factory_manager' && location !== 'Factory') {
+            return res.status(403).json({ message: 'Access Denied' });
+        }
+        if (req.user.role === 'shop_manager' && location !== 'Shop') {
+            return res.status(403).json({ message: 'Access Denied' });
+        }
+
+        let stock = await Stock.findOne({ location });
+        if (!stock) return res.status(404).json({ message: 'Location not found' });
+
+        const itemIndex = stock.items.findIndex(i => i.name === oldItemName);
+        if (itemIndex === -1) {
+            return res.status(404).json({ message: 'Item not found' });
+        }
+
+        // Check if new name already exists (Merge logic or Error?)
+        // Let's Error for now to be safe, user should delete target manualy if they want to merge
+        const existingIndex = stock.items.findIndex(i => i.name === newItemName);
+        if (existingIndex > -1) {
+            return res.status(400).json({ message: 'Item with new name already exists. Cannot rename.' });
+        }
+
+        // Rename
+        stock.items[itemIndex].name = newItemName;
         stock.lastUpdated = Date.now();
         await stock.save();
 

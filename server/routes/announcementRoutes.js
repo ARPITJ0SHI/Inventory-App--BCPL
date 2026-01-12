@@ -63,12 +63,18 @@ router.post('/', authMiddleware, async (req, res) => {
         const users = await User.find({ pushTokens: { $exists: true, $not: { $size: 0 } } });
 
         const messages = [];
+        const tokens = new Set(); // Deduplicate tokens globally
+
         for (const user of users) {
+            if (!user.pushTokens) continue;
             for (const token of user.pushTokens) {
                 if (!Expo.isExpoPushToken(token)) {
                     console.error(`Push token ${token} is not a valid Expo push token`);
                     continue;
                 }
+                if (tokens.has(token)) continue; // Skip duplicate
+
+                tokens.add(token);
                 messages.push({
                     to: token,
                     sound: 'default',
@@ -80,11 +86,10 @@ router.post('/', authMiddleware, async (req, res) => {
         }
 
         const chunks = expo.chunkPushNotifications(messages);
-        const tickets = [];
+
         for (const chunk of chunks) {
             try {
-                const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-                tickets.push(...ticketChunk);
+                await expo.sendPushNotificationsAsync(chunk);
             } catch (error) {
                 console.error(error);
             }

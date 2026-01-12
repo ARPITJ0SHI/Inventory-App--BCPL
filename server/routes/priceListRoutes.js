@@ -33,11 +33,23 @@ router.get('/', authMiddleware, async (req, res) => {
         }
 
         // Sort by newest/oldest (default: newest)
-        const sortOrder = sort === 'oldest' ? 1 : -1;
+        // Sort by newest/oldest (default: newest)
+        const sortOrder = sort;
         allItems.sort((a, b) => {
-            const aTime = a._id?.getTimestamp?.() || new Date(0);
-            const bTime = b._id?.getTimestamp?.() || new Date(0);
-            return sortOrder * (bTime - aTime);
+            if (sortOrder === 'asc') {
+                return a.productName.localeCompare(b.productName);
+            } else if (sortOrder === 'desc_alpha') {
+                return b.productName.localeCompare(a.productName);
+            } else if (sortOrder === 'oldest') {
+                const aTime = a._id?.getTimestamp?.() || new Date(0);
+                const bTime = b._id?.getTimestamp?.() || new Date(0);
+                return aTime - bTime;
+            } else {
+                // Newest (default)
+                const aTime = a._id?.getTimestamp?.() || new Date(0);
+                const bTime = b._id?.getTimestamp?.() || new Date(0);
+                return bTime - aTime;
+            }
         });
 
         const total = allItems.length;

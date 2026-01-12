@@ -43,20 +43,24 @@ router.post('/', authMiddleware, upload.fields([
     { name: 'parchiImage', maxCount: 1 }
 ]), async (req, res) => {
     try {
-        const { vendorName, location, items, totalAmount } = req.body;
-        console.log(`[DEBUG] Order Create - User Role: ${req.user.role}, Target Location: ${location}`);
+        const { vendorName, location, items, totalAmount, deposit } = req.body;
+        console.log(`[DEBUG] Order Create - Role: ${req.user.role}, Loc: ${location}, Deposit: ${deposit}`);
 
         // Enforce Location Access
         if (req.user.role === 'factory_manager' && location !== 'Factory') {
-            console.log('[DEBUG] Blocked Factory Manager from creating non-Factory order');
             return res.status(403).json({ message: 'Access Denied: You can only create orders for Factory' });
         }
         if (req.user.role === 'shop_manager' && location !== 'Shop') {
-            console.log('[DEBUG] Blocked Shop Manager from creating non-Shop order');
             return res.status(403).json({ message: 'Access Denied: You can only create orders for Shop' });
         }
 
-        const parsedItems = JSON.parse(items);
+        let parsedItems = JSON.parse(items);
+        parsedItems = parsedItems.map(i => ({
+            name: i.name,
+            quantity: Number(i.quantity),
+            price: Number(i.price),
+            gst: Number(i.gst) || 0
+        }));
 
         // Process and compress images
         const images = [];
@@ -74,6 +78,7 @@ router.post('/', authMiddleware, upload.fields([
             location,
             items: parsedItems,
             totalAmount: Number(totalAmount) || 0,
+            deposit: Number(deposit) || 0,
             images,
             createdBy: req.user.userId
         });
@@ -123,7 +128,16 @@ router.get('/', authMiddleware, async (req, res) => {
         const total = await Order.countDocuments(filter);
 
         // Sort order
-        const sortOrder = sort === 'oldest' ? { createdAt: 1 } : { createdAt: -1 };
+        let sortOrder;
+        if (sort === 'oldest') {
+            sortOrder = { createdAt: 1 };
+        } else if (sort === 'asc') {
+            sortOrder = { vendorName: 1 };
+        } else if (sort === 'desc_alpha') {
+            sortOrder = { vendorName: -1 };
+        } else {
+            sortOrder = { createdAt: -1 };
+        }
 
         // Fetch paginated orders
         const orders = await Order.find(filter)
@@ -166,7 +180,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Managers can update status (Pending -> Completed). Admins can update all.
 router.patch('/:id', authMiddleware, async (req, res) => {
     try {
-        const { status, totalAmount, items } = req.body;
+        const { status, totalAmount, items, deposit } = req.body;
         const order = await Order.findById(req.params.id);
 
         if (!order) {
@@ -176,8 +190,9 @@ router.patch('/:id', authMiddleware, async (req, res) => {
         // Logic: Managers can only mark completed? Admin can edit all?
         // For MVP, letting them update fields provided.
         if (status) order.status = status;
-        if (totalAmount) order.totalAmount = totalAmount;
+        if (totalAmount !== undefined) order.totalAmount = totalAmount;
         if (items) order.items = items;
+        if (deposit !== undefined) order.deposit = deposit;
 
         // Enforce Location Access (Write Security)
         if (req.user.role === 'factory_manager' && order.location !== 'Factory') {
