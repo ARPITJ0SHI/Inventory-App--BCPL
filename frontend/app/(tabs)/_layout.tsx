@@ -8,12 +8,15 @@ import { useRBAC, Role } from '../../src/hooks/useRBAC';
 import * as ScreenCapture from 'expo-screen-capture';
 import { useEffect } from 'react';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useGlobalPolling } from '../../src/hooks/useGlobalPolling';
 
 export default function TabLayout() {
   const { theme: themeMode } = useTheme();
   const theme = Colors[themeMode];
   const { role, canViewPriceList } = useRBAC();
+  const insets = useSafeAreaInsets();
 
   // Activate Global Polling (Every 2 minutes)
   useGlobalPolling(120000);
@@ -31,7 +34,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
           position: 'absolute',
-          bottom: 16,
+          bottom: 16 + insets.bottom,
           left: 16,
           right: 16,
           height: 65,
