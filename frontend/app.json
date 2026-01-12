@@ -55,6 +55,15 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
+    "updates": {
+      "url": "https://u.expo.dev/defebbca-04e9-44ec-803d-23c224d8b46f",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "extra": {
       "apiUrl": "https://inventory-app-bcpl.onrender.com/api",
       "eas": {

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Colors } from '../../src/constants/Colors';
 import { Button } from '../../src/components/Button';
 import { useAuth } from '../../src/context/AuthContext';
+import { useUpdates } from '../../src/context/UpdateContext';
 import { useTheme } from '../../src/context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +12,7 @@ import { useRBAC, Role } from '../../src/hooks/useRBAC';
 
 export default function ProfileScreen() {
     const { logout, login, token } = useAuth();
+    const { checkForUpdate, isChecking } = useUpdates();
     const { role, canManageUsers, canViewUsers } = useRBAC();
     const router = useRouter();
     const { theme: themeMode } = useTheme();
@@ -69,6 +71,18 @@ export default function ProfileScreen() {
                     >
                         <Ionicons name="settings-outline" size={24} color={theme.text} />
                         <Text style={[styles.menuText, { color: theme.text }]}>Settings</Text>
+                        <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.menuItem, { borderBottomColor: theme.border }]}
+                        onPress={() => checkForUpdate(true)}
+                        disabled={isChecking}
+                    >
+                        <Ionicons name="cloud-download-outline" size={24} color={theme.text} />
+                        <Text style={[styles.menuText, { color: theme.text }]}>
+                            {isChecking ? 'Checking for updates...' : 'Check for Updates'}
+                        </Text>
                         <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
                     </TouchableOpacity>
 
