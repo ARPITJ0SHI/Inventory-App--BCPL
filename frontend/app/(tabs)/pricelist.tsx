@@ -34,7 +34,7 @@ export default function PriceListScreen() {
     const [loadingMore, setLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
-    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'asc' | 'desc_alpha'>('newest');
     const [refreshing, setRefreshing] = useState(false);
 
     const [modalVisible, setModalVisible] = useState(false);
@@ -144,7 +144,12 @@ export default function PriceListScreen() {
 
     // Sort toggle
     const toggleSortOrder = useCallback(() => {
-        setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
+        setSortOrder(prev => {
+            if (prev === 'newest') return 'oldest';
+            if (prev === 'oldest') return 'asc';
+            if (prev === 'asc') return 'desc_alpha';
+            return 'newest';
+        });
     }, []);
 
     const handleRefresh = useCallback(() => {
@@ -280,12 +285,20 @@ export default function PriceListScreen() {
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                     >
                         <Ionicons
-                            name={sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'}
+                            name={
+                                sortOrder === 'asc' ? 'arrow-down-circle' :
+                                    sortOrder === 'desc_alpha' ? 'arrow-up-circle' :
+                                        sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'
+                            }
                             size={16}
                             color={theme.primary}
                         />
                         <Text style={{ color: theme.primary, fontSize: 12 }}>
-                            {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                            {
+                                sortOrder === 'asc' ? 'A-Z' :
+                                    sortOrder === 'desc_alpha' ? 'Z-A' :
+                                        sortOrder === 'newest' ? 'Newest' : 'Oldest'
+                            }
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -422,7 +435,7 @@ const styles = StyleSheet.create({
     actionBtn: { padding: 4, marginLeft: 8 },
     fab: {
         position: 'absolute',
-        bottom: 90,
+        bottom: 110,
         right: 20,
         width: 56,
         height: 56,

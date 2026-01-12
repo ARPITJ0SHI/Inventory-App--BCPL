@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', padding: 40 },
   fab: {
     position: 'absolute',
-    bottom: 90,
+    bottom: 110,
     right: 20,
     width: 56,
     height: 56,

@@ -19,7 +19,7 @@ export default function OrderListScreen() {
     const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
     const [search, setSearch] = useState('');
     const [locationFilter, setLocationFilter] = useState<string>(''); // '' = All
-    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'asc' | 'desc_alpha'>('newest');
     const [loading, setLoading] = useState(true);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -154,7 +154,12 @@ export default function OrderListScreen() {
     }, []);
 
     const toggleSortOrder = useCallback(() => {
-        setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
+        setSortOrder(prev => {
+            if (prev === 'newest') return 'oldest';
+            if (prev === 'oldest') return 'asc';
+            if (prev === 'asc') return 'desc_alpha';
+            return 'newest';
+        });
     }, []);
 
     useFocusEffect(
@@ -331,9 +336,17 @@ export default function OrderListScreen() {
                                 {item.items.length} Items
                             </Text>
                         </View>
-                        <Text style={[styles.total, { color: theme.primary }]}>
-                            ₹{item.totalAmount?.toLocaleString() || 0}
-                        </Text>
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={[styles.total, { color: theme.primary }]}>
+                                ₹{item.totalAmount?.toLocaleString() || 0}
+                            </Text>
+                            {/* Show Balance if deposit exists and status is NOT completed */}
+                            {(item.deposit || 0) > 0 && item.status !== 'completed' && (
+                                <Text style={{ fontSize: 11, color: theme.error, fontWeight: '600' }}>
+                                    Bal: ₹{(item.totalAmount - (item.deposit || 0)).toLocaleString()}
+                                </Text>
+                            )}
+                        </View>
                     </View>
 
                     {/* Actions */}
@@ -466,12 +479,20 @@ export default function OrderListScreen() {
                                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                             >
                                 <Ionicons
-                                    name={sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'}
+                                    name={
+                                        sortOrder === 'asc' ? 'arrow-down-circle' :
+                                            sortOrder === 'desc_alpha' ? 'arrow-up-circle' :
+                                                sortOrder === 'newest' ? 'time' : 'time-outline'
+                                    }
                                     size={16}
                                     color={theme.primary}
                                 />
                                 <Text style={{ color: theme.primary, fontSize: 12 }}>
-                                    {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                                    {
+                                        sortOrder === 'asc' ? 'A-Z' :
+                                            sortOrder === 'desc_alpha' ? 'Z-A' :
+                                                sortOrder === 'newest' ? 'Newest' : 'Oldest'
+                                    }
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -590,7 +611,7 @@ const styles = StyleSheet.create({
     },
     fab: {
         position: 'absolute',
-        bottom: 90,
+        bottom: 110,
         right: 20,
         width: 56,
         height: 56,

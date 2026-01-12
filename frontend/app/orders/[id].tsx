@@ -103,18 +103,52 @@ export default function OrderDetailsScreen() {
                 {/* Items */}
                 <View style={[styles.section, { backgroundColor: theme.surface }]}>
                     <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Items</Text>
-                    {order.items.map((item, index) => (
-                        <View key={index} style={[styles.itemRow, { borderBottomColor: theme.border, borderBottomWidth: index < order.items.length - 1 ? 1 : 0 }]}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[styles.itemName, { color: theme.text }]}>{item.name}</Text>
-                                <Text style={[styles.itemQty, { color: theme.textSecondary }]}>{item.quantity} x ₹{item.price}</Text>
+                    {order.items.map((item, index) => {
+                        const itemTotal = (item.quantity * item.price);
+                        const gstPercent = item.gst || 0;
+                        const taxAmount = itemTotal * (gstPercent / 100);
+                        const finalTotal = itemTotal + taxAmount;
+
+                        return (
+                            <View key={index} style={[styles.itemRow, { borderBottomColor: theme.border, borderBottomWidth: index < order.items.length - 1 ? 1 : 0 }]}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.itemName, { color: theme.text }]}>{item.name}</Text>
+                                    <Text style={[styles.itemQty, { color: theme.textSecondary }]}>
+                                        {item.quantity} x ₹{item.price}
+                                        {gstPercent > 0 && <Text style={{ fontSize: 10, color: theme.textSecondary }}> (+{gstPercent}% GST)</Text>}
+                                    </Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text style={[styles.itemTotal, { color: theme.text }]}>₹{finalTotal.toLocaleString()}</Text>
+                                    {gstPercent > 0 && (
+                                        <Text style={{ fontSize: 10, color: theme.textSecondary }}>(Tax: ₹{taxAmount.toFixed(0)})</Text>
+                                    )}
+                                </View>
                             </View>
-                            <Text style={[styles.itemTotal, { color: theme.text }]}>₹{(item.quantity * item.price).toLocaleString()}</Text>
+                        );
+                    })}
+
+                    {/* Summary */}
+                    <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.border }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <Text style={{ fontSize: 14, color: theme.textSecondary }}>Grand Total</Text>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.primary }}>₹{order.totalAmount.toLocaleString()}</Text>
                         </View>
-                    ))}
-                    <View style={[styles.totalRow, { borderTopColor: theme.border }]}>
-                        <Text style={[styles.totalLabel, { color: theme.text }]}>Total Amount</Text>
-                        <Text style={[styles.totalValue, { color: theme.primary }]}>₹{order.totalAmount.toLocaleString()}</Text>
+
+                        {(order.deposit || 0) > 0 && (
+                            <>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                    <Text style={{ fontSize: 14, color: theme.textSecondary }}>Deposit / Advance</Text>
+                                    <Text style={{ fontSize: 14, color: theme.textSecondary }}>- ₹{order.deposit?.toLocaleString()}</Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.border, borderStyle: 'dashed' }}>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.text }}>Balance Due</Text>
+                                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: theme.error }}>
+                                        ₹{(order.totalAmount - (order.deposit || 0)).toLocaleString()}
+                                    </Text>
+                                </View>
+                            </>
+                        )}
                     </View>
                 </View>
 

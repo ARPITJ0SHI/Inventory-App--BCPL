@@ -31,7 +31,7 @@ export default function StockScreen() {
     const [filteredItems, setFilteredItems] = useState<StockItem[]>([]);
     const [search, setSearch] = useState('');
     const [locationFilter, setLocationFilter] = useState<string>(''); // '' = All
-    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'asc' | 'desc_alpha'>('newest');
     const [loading, setLoading] = useState(true);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -174,7 +174,12 @@ export default function StockScreen() {
     }, []);
 
     const toggleSortOrder = useCallback(() => {
-        setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
+        setSortOrder(prev => {
+            if (prev === 'newest') return 'oldest';
+            if (prev === 'oldest') return 'asc';
+            if (prev === 'asc') return 'desc_alpha';
+            return 'newest';
+        });
         // useEffect above will trigger fetchData
     }, []);
 
@@ -221,6 +226,52 @@ export default function StockScreen() {
             }
         ]);
     }, [fetchData, canEditStock]);
+
+    // Confirm Edit (renaming + quantity update)
+    const handleEditStock = async () => {
+        if (!editingItem) return; // Use editingItem instead of selectedItem
+        setLoading(true);
+        try {
+            const loc = editingItem.location;
+            const oldName = editingItem.productName;
+            const newName = watch('itemName').trim(); // Get current value from form
+            const editQuantity = watch('quantity');
+            const editUnit = watch('unit');
+
+            if (!newName) {
+                Alert.alert('Error', 'Item name cannot be empty');
+                setLoading(false);
+                return;
+            }
+
+            // 1. Rename if Key Changed
+            if (newName !== oldName) {
+                console.log(`[STOCK] Renaming ${oldName} -> ${newName}`);
+                try {
+                    await dataService.renameStockItem(loc, oldName, newName);
+                } catch (e: any) {
+                    Alert.alert('Error', e.response?.data?.message || 'Failed to rename item');
+                    setLoading(false);
+                    return; // Stop here if rename fails
+                }
+            }
+
+            // 2. Update Quantity/Unit (using the NEW name if renamed, or old name)
+            // Note: If we renamed, the backend has the new name. So we must use newName.
+            await dataService.updateStock(loc, newName, parseInt(editQuantity), editUnit);
+
+            setModalVisible(false);
+            fetchData(1, false, true); // Force refresh
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert('Success', 'Item updated successfully!');
+        } catch (error) {
+            console.error(error);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            Alert.alert('Error', 'Failed to update stock');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const onSubmit = useCallback(async (data: StockFormValues) => {
         try {
@@ -348,7 +399,7 @@ export default function StockScreen() {
         );
     }, [theme, selectedIds, selectionMode, canEditStock, handleLongPress, toggleSelection, handleEdit, handleDelete]);
 
-    const keyExtractor = useCallback((item: StockItem) => item._id, []);
+    const keyExtractor = useCallback((item: StockItem, index: number) => `${item.location}_${item._id}_${index}`, []);
 
     const SkeletonList = useMemo(() => (
         <View style={styles.listContent}>
@@ -421,12 +472,20 @@ export default function StockScreen() {
                                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                             >
                                 <Ionicons
-                                    name={sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'}
+                                    name={
+                                        sortOrder === 'asc' ? 'arrow-down-circle' :
+                                            sortOrder === 'desc_alpha' ? 'arrow-up-circle' :
+                                                sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'
+                                    }
                                     size={16}
                                     color={theme.primary}
                                 />
                                 <Text style={{ color: theme.primary, fontSize: 12 }}>
-                                    {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                                    {
+                                        sortOrder === 'asc' ? 'A-Z' :
+                                            sortOrder === 'desc_alpha' ? 'Z-A' :
+                                                sortOrder === 'newest' ? 'Newest' : 'Oldest'
+                                    }
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -523,7 +582,7 @@ export default function StockScreen() {
                                     name="itemName"
                                     control={control}
                                     placeholder="Enter item name"
-                                    editable={!editingItem}
+                                    editable={true} // Allow renaming now
                                     error={errors.itemName?.message}
                                 />
                                 <Input
@@ -604,7 +663,7 @@ const styles = StyleSheet.create({
     actionBtn: { padding: 4, marginLeft: 12 },
     fab: {
         position: 'absolute',
-        bottom: 90,
+        bottom: 110,
         right: 20,
         width: 56,
         height: 56,

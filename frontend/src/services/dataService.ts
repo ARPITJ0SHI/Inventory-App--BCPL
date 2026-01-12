@@ -29,6 +29,7 @@ export interface OrderItem {
     quantity: number;
     price: number;
     unit?: string;
+    gst?: number; // GST Percentage (0, 5, 12, 18, etc.)
 }
 
 export interface OrderImage {
@@ -42,6 +43,7 @@ export interface Order {
     vendorName: string;
     items: OrderItem[];
     totalAmount: number;
+    deposit?: number; // Advance Payment
     status: string;
     location: string;
     images?: OrderImage[];
@@ -170,6 +172,12 @@ export const dataService = {
 
     updateStock: async (location: string, itemName: string, quantity: number, unit?: string) => {
         const response = await api.post('/stock/update', { location, itemName, quantity, unit });
+        cache.invalidate('stock');
+        return response.data;
+    },
+
+    renameStockItem: async (location: string, oldItemName: string, newItemName: string) => {
+        const response = await api.post('/stock/rename', { location, oldItemName, newItemName });
         cache.invalidate('stock');
         return response.data;
     },
