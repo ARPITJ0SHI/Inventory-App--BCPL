@@ -279,6 +279,24 @@ export default function StockScreen() {
                 Alert.alert('Access Denied', 'You cannot save to this location');
                 return;
             }
+
+            // If editing an existing item and name changed, rename first
+            if (editingItem) {
+                const oldName = editingItem.productName || editingItem.itemName;
+                const newName = data.itemName.trim();
+
+                if (oldName && newName && oldName !== newName) {
+                    console.log(`[STOCK] Renaming ${oldName} -> ${newName}`);
+                    try {
+                        await dataService.renameStockItem(data.location, oldName, newName);
+                    } catch (e: any) {
+                        Alert.alert('Error', e.response?.data?.message || 'Failed to rename item');
+                        return;
+                    }
+                }
+            }
+
+            // Update quantity/unit (use current name from form)
             await dataService.updateStock(data.location, data.itemName, Number(data.quantity), data.unit);
             setModalVisible(false);
             fetchData();
