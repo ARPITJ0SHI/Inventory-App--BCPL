@@ -61,9 +61,7 @@
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "extra": {
       "apiUrl": "https://inventory-app-bcpl.onrender.com/api",
       "eas": {
