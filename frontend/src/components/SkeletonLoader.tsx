@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle, Animated, Easing } from 'react-native';
-import { MotiView } from 'moti';
 import { Colors } from '../constants/Colors';
 import { useTheme } from '../context/ThemeContext';
 
@@ -19,16 +18,31 @@ export const SkeletonLoader = React.memo(function SkeletonLoader({
 }: SkeletonLoaderProps) {
     const { theme: themeMode } = useTheme();
     const theme = Colors[themeMode];
+    const pulseAnim = useRef(new Animated.Value(0.4)).current;
+
+    useEffect(() => {
+        const pulse = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, {
+                    toValue: 0.8,
+                    duration: 500,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 0.4,
+                    duration: 500,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+        pulse.start();
+        return () => pulse.stop();
+    }, []);
 
     return (
-        <MotiView
-            from={{ opacity: 0.4 }}
-            animate={{ opacity: 0.8 }}
-            transition={{
-                type: 'timing',
-                duration: 1000,
-                loop: true,
-            }}
+        <Animated.View
             style={[
                 styles.skeleton,
                 {
@@ -36,6 +50,7 @@ export const SkeletonLoader = React.memo(function SkeletonLoader({
                     height,
                     borderRadius,
                     backgroundColor: theme.border,
+                    opacity: pulseAnim,
                 },
                 style
             ]}
@@ -50,13 +65,36 @@ interface SkeletonCardProps {
 export const SkeletonCard = React.memo(function SkeletonCard({ style }: SkeletonCardProps) {
     const { theme: themeMode } = useTheme();
     const theme = Colors[themeMode];
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const translateYAnim = useRef(new Animated.Value(5)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+            Animated.timing(translateYAnim, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
 
     return (
-        <MotiView
-            from={{ opacity: 0, translateY: 5 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 300 }}
-            style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }, style]}
+        <Animated.View
+            style={[
+                styles.card,
+                {
+                    backgroundColor: theme.surface,
+                    borderColor: theme.border,
+                    opacity: fadeAnim,
+                    transform: [{ translateY: translateYAnim }],
+                },
+                style
+            ]}
         >
             <View style={styles.cardHeader}>
                 <View style={styles.iconPlaceholder}>
@@ -69,7 +107,7 @@ export const SkeletonCard = React.memo(function SkeletonCard({ style }: Skeleton
             </View>
             <SkeletonLoader width="90%" height={12} borderRadius={4} style={{ marginTop: 14 }} />
             <SkeletonLoader width="70%" height={12} borderRadius={4} style={{ marginTop: 8 }} />
-        </MotiView>
+        </Animated.View>
     );
 });
 
@@ -99,4 +137,3 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 });
-

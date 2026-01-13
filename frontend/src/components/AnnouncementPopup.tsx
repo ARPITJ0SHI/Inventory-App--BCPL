@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Dimensions, Animated } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import { MotiView } from 'moti';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
-import { Announcement, dataService } from '../services/dataService';
+import { Announcement } from '../services/dataService';
 import { useRBAC } from '../hooks/useRBAC';
 
 interface AnnouncementPopupProps {
@@ -26,6 +25,9 @@ export const AnnouncementPopup = React.memo(function AnnouncementPopup({
     const [unseenAnnouncements, setUnseenAnnouncements] = useState<Announcement[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [visible, setVisible] = useState(false);
+
+    const scaleAnim = useRef(new Animated.Value(0.9)).current;
+    const opacityAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         const checkUnseen = async () => {
@@ -49,6 +51,24 @@ export const AnnouncementPopup = React.memo(function AnnouncementPopup({
             checkUnseen();
         }
     }, [announcements]);
+
+    useEffect(() => {
+        if (visible) {
+            Animated.parallel([
+                Animated.spring(scaleAnim, {
+                    toValue: 1,
+                    friction: 8,
+                    tension: 40,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(opacityAnim, {
+                    toValue: 1,
+                    duration: 300,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        }
+    }, [visible]);
 
     const markAsSeen = useCallback(async (id: string) => {
         try {
@@ -108,11 +128,15 @@ export const AnnouncementPopup = React.memo(function AnnouncementPopup({
             onRequestClose={handleDismissAll}
         >
             <View style={styles.overlay}>
-                <MotiView
-                    from={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ type: 'timing', duration: 300 }}
-                    style={[styles.popup, { backgroundColor: theme.surface }]}
+                <Animated.View
+                    style={[
+                        styles.popup,
+                        {
+                            backgroundColor: theme.surface,
+                            opacity: opacityAnim,
+                            transform: [{ scale: scaleAnim }],
+                        }
+                    ]}
                 >
                     {/* Header */}
                     <View style={styles.header}>
@@ -159,7 +183,7 @@ export const AnnouncementPopup = React.memo(function AnnouncementPopup({
                             {remaining > 1 && <Ionicons name="arrow-forward" size={16} color="#fff" />}
                         </TouchableOpacity>
                     </View>
-                </MotiView>
+                </Animated.View>
             </View>
         </Modal>
     );

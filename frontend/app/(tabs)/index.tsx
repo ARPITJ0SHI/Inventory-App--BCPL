@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput, Alert, Animated } from 'react-native';
 import { Colors } from '../../src/constants/Colors';
 import { Card } from '../../src/components/Card';
 import { dataService, Announcement } from '../../src/services/dataService';
-import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SkeletonCard } from '../../src/components/SkeletonLoader';
@@ -28,8 +27,35 @@ export default function Dashboard() {
   const theme = Colors[themeMode];
   const { role } = useRBAC();
 
+  // Animations
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const headerTranslateY = useRef(new Animated.Value(-10)).current;
+  const statsAnims = [
+    { opacity: useRef(new Animated.Value(0)).current, scale: useRef(new Animated.Value(0.9)).current },
+    { opacity: useRef(new Animated.Value(0)).current, scale: useRef(new Animated.Value(0.9)).current },
+    { opacity: useRef(new Animated.Value(0)).current, scale: useRef(new Animated.Value(0.9)).current },
+  ];
+
   // Stats
   const [stats, setStats] = useState({ orders: 0, stockItems: 0, pending: 0 });
+
+  useEffect(() => {
+    // Animate header
+    Animated.parallel([
+      Animated.timing(headerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(headerTranslateY, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+
+    // Animate stats with delays
+    statsAnims.forEach((anim, index) => {
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(anim.opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+          Animated.spring(anim.scale, { toValue: 1, friction: 8, useNativeDriver: true }),
+        ]).start();
+      }, 100 + index * 100);
+    });
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -51,14 +77,10 @@ export default function Dashboard() {
       const stockData = stockResponse.data || stockResponse || [];
 
       // Calculate stats
-      const totalOrders = Array.isArray(ordersData) ? ordersData.length : (ordersResponse.pagination?.total || 0);
-      const totalStock = Array.isArray(stockData) ? stockData.length : (stockResponse.pagination?.total || 0);
-
       const ordersArray = Array.isArray(ordersData) ? ordersData : [];
       const pendingOrders = ordersArray.filter((o: any) => o.status === 'pending').length;
 
       // For total counts, if we have pagination metadata, use that for accuracy!
-      // Otherwise fallback to loaded length
       const finalTotalOrders = ordersResponse.pagination?.total ?? ordersArray.length;
       const finalTotalStock = stockResponse.pagination?.total ?? (Array.isArray(stockData) ? stockData.length : 0);
 
@@ -82,16 +104,13 @@ export default function Dashboard() {
   useEffect(() => {
     if (!isInitialLoad && !loading && unreadAnnouncements.length > 0 && !hasShownPopup.current) {
       hasShownPopup.current = true;
-      // Small delay to ensure smooth transition after initial render
       const timer = setTimeout(() => setShowPopup(true), 800);
       return () => clearTimeout(timer);
     }
   }, [isInitialLoad, loading, unreadAnnouncements.length]);
 
-  // Handle popup dismiss - mark as read
   const handlePopupDismiss = useCallback(async () => {
     setShowPopup(false);
-    // Mark all unread as read
     const ids = unreadAnnouncements.map(a => a._id);
     await markAnnouncementsAsRead(ids);
     setUnreadAnnouncements([]);
@@ -136,7 +155,6 @@ export default function Dashboard() {
   ), []);
 
   const renderAnnouncement = useCallback((item: Announcement, index: number) => {
-    // Calculate days remaining (7 day max)
     const createdDate = new Date(item.createdAt);
     const expiryDate = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
     const now = new Date();
@@ -198,51 +216,52 @@ export default function Dashboard() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={handleRefresh} />}
       >
-        <MotiView
-          from={{ opacity: 0, translateY: -10 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          style={styles.header}
+        <Animated.View
+          style={[
+            styles.header,
+            { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }
+          ]}
         >
           <View>
             <Text style={[styles.greeting, { color: theme.textSecondary }]}>Hello, Staff</Text>
             <Text style={[styles.title, { color: theme.text }]}>Dashboard</Text>
           </View>
-        </MotiView>
+        </Animated.View>
 
         {/* Quick Stats */}
         <View style={styles.statsRow}>
-          <MotiView
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 100 }}
-            style={[styles.statCard, { backgroundColor: theme.primary + '15' }]}
+          <Animated.View
+            style={[
+              styles.statCard,
+              { backgroundColor: theme.primary + '15', opacity: statsAnims[0].opacity, transform: [{ scale: statsAnims[0].scale }] }
+            ]}
           >
             <Ionicons name="receipt-outline" size={24} color={theme.primary} />
             <Text style={[styles.statValue, { color: theme.text }]}>{stats.orders}</Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Orders</Text>
-          </MotiView>
+          </Animated.View>
 
-          <MotiView
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 200 }}
-            style={[styles.statCard, { backgroundColor: theme.success + '15' }]}
+          <Animated.View
+            style={[
+              styles.statCard,
+              { backgroundColor: theme.success + '15', opacity: statsAnims[1].opacity, transform: [{ scale: statsAnims[1].scale }] }
+            ]}
           >
             <Ionicons name="cube-outline" size={24} color={theme.success} />
             <Text style={[styles.statValue, { color: theme.text }]}>{stats.stockItems}</Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Stock Items</Text>
-          </MotiView>
+          </Animated.View>
 
-          <MotiView
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 300 }}
-            style={[styles.statCard, { backgroundColor: theme.error + '15' }]}
+          <Animated.View
+            style={[
+              styles.statCard,
+              { backgroundColor: theme.error + '15', opacity: statsAnims[2].opacity, transform: [{ scale: statsAnims[2].scale }] }
+            ]}
           >
             <Ionicons name="time-outline" size={24} color={theme.error} />
             <Text style={[styles.statValue, { color: theme.text }]}>{stats.pending}</Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Pending</Text>
-          </MotiView>
+          </Animated.View>
         </View>
 
         <View style={styles.sectionHeader}>

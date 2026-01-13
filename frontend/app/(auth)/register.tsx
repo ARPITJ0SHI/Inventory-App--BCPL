@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Animated } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -9,15 +9,11 @@ import { Button } from '../../src/components/Button';
 import { Colors } from '../../src/constants/Colors';
 import { authService } from '../../src/services/authService';
 import { useAuth } from '../../src/context/AuthContext';
-import { MotiView } from 'moti';
 
 const registerSchema = z.object({
     username: z.string().min(3, 'Username must be at least 3 characters'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
-    role: z.string().optional(), // 'admin' or 'staff', default to staff if not provided or handled by backend? 
-    // Backend authRoutes.js expects role in body, default schema doesn't validate it strictly but I'll add "staff" as default hidden field if needed.
-    // Actually the form doesn't show role selection, I'll default to 'staff' or let user type it?
-    // Use simple registration for now.
+    role: z.string().optional(),
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -28,6 +24,25 @@ export default function RegisterScreen() {
     const [isLoading, setIsLoading] = React.useState(false);
     const colorScheme = 'light';
     const theme = Colors[colorScheme];
+
+    const headerOpacity = useRef(new Animated.Value(0)).current;
+    const headerTranslateY = useRef(new Animated.Value(20)).current;
+    const formOpacity = useRef(new Animated.Value(0)).current;
+    const formTranslateY = useRef(new Animated.Value(20)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(headerOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+            Animated.timing(headerTranslateY, { toValue: 0, duration: 500, useNativeDriver: true }),
+        ]).start();
+
+        setTimeout(() => {
+            Animated.parallel([
+                Animated.timing(formOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+                Animated.timing(formTranslateY, { toValue: 0, duration: 500, useNativeDriver: true }),
+            ]).start();
+        }, 100);
+    }, []);
 
     const { control, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({
         resolver: zodResolver(registerSchema),
@@ -41,13 +56,11 @@ export default function RegisterScreen() {
     const onSubmit = async (data: RegisterFormData) => {
         try {
             setIsLoading(true);
-            // Adding default role if not present, though defaultValues should handle it.
             const payload = { ...data, role: data.role || 'staff' };
             const response = await authService.register(payload);
 
             if (response.token) {
                 await login(response.token, response.role || 'staff');
-                // Router auto-redirects
             } else {
                 Alert.alert('Registration Failed', 'No token received');
             }
@@ -65,21 +78,21 @@ export default function RegisterScreen() {
             style={[styles.container, { backgroundColor: theme.background }]}
         >
             <ScrollView contentContainerStyle={styles.scrollContent}>
-                <MotiView
-                    from={{ opacity: 0, translateY: 20 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    transition={{ type: 'timing', duration: 500 }}
-                    style={styles.header}
+                <Animated.View
+                    style={[
+                        styles.header,
+                        { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }
+                    ]}
                 >
                     <Text style={[styles.title, { color: theme.primary }]}>Create Account</Text>
                     <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Join our inventory management system</Text>
-                </MotiView>
+                </Animated.View>
 
-                <MotiView
-                    from={{ opacity: 0, translateY: 20 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    transition={{ type: 'timing', duration: 500, delay: 100 }}
-                    style={styles.form}
+                <Animated.View
+                    style={[
+                        styles.form,
+                        { opacity: formOpacity, transform: [{ translateY: formTranslateY }] }
+                    ]}
                 >
                     <Input
                         label="Username"
@@ -113,7 +126,7 @@ export default function RegisterScreen() {
                             <Text style={[styles.link, { color: theme.primary }]}>Sign In</Text>
                         </Link>
                     </View>
-                </MotiView>
+                </Animated.View>
             </ScrollView>
         </KeyboardAvoidingView>
     );

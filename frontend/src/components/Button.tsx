@@ -1,7 +1,6 @@
-import React, { useCallback } from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, Pressable, Animated } from 'react-native';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, Animated } from 'react-native';
 import { Colors } from '../constants/Colors';
-import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 
 interface ButtonProps {
@@ -23,7 +22,24 @@ export const Button = React.memo(function Button({
 }: ButtonProps) {
     const colorScheme = 'light';
     const theme = Colors[colorScheme];
-    const scaleAnim = React.useRef(new Animated.Value(1)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+    const opacityAnim = useRef(new Animated.Value(0)).current;
+    const translateYAnim = useRef(new Animated.Value(5)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(opacityAnim, {
+                toValue: 1,
+                duration: 150,
+                useNativeDriver: true,
+            }),
+            Animated.timing(translateYAnim, {
+                toValue: 0,
+                duration: 150,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
 
     const getBackgroundColor = useCallback(() => {
         switch (variant) {
@@ -73,36 +89,35 @@ export const Button = React.memo(function Button({
     }, [hapticFeedback, onPress]);
 
     return (
-        <MotiView
-            from={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'timing', duration: 150 }}
+        <Animated.View
+            style={{
+                opacity: opacityAnim,
+                transform: [{ scale: scaleAnim }, { translateY: translateYAnim }]
+            }}
         >
-            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-                <TouchableOpacity
-                    style={[
-                        styles.container,
-                        {
-                            backgroundColor: getBackgroundColor(),
-                            borderColor: getBorderColor(),
-                            borderWidth: variant === 'outline' || variant === 'secondary' ? 1 : 0
-                        },
-                        style
-                    ]}
-                    onPress={handlePress}
-                    onPressIn={handlePressIn}
-                    onPressOut={handlePressOut}
-                    disabled={isLoading}
-                    activeOpacity={0.9}
-                >
-                    {isLoading ? (
-                        <ActivityIndicator color={getTextColor()} />
-                    ) : (
-                        <Text style={[styles.text, { color: getTextColor() }]}>{title}</Text>
-                    )}
-                </TouchableOpacity>
-            </Animated.View>
-        </MotiView>
+            <TouchableOpacity
+                style={[
+                    styles.container,
+                    {
+                        backgroundColor: getBackgroundColor(),
+                        borderColor: getBorderColor(),
+                        borderWidth: variant === 'outline' || variant === 'secondary' ? 1 : 0
+                    },
+                    style
+                ]}
+                onPress={handlePress}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                disabled={isLoading}
+                activeOpacity={0.9}
+            >
+                {isLoading ? (
+                    <ActivityIndicator color={getTextColor()} />
+                ) : (
+                    <Text style={[styles.text, { color: getTextColor() }]}>{title}</Text>
+                )}
+            </TouchableOpacity>
+        </Animated.View>
     );
 });
 

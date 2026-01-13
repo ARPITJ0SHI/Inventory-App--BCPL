@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity, Animated } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useForm } from 'react-hook-form';
@@ -11,7 +11,6 @@ import { Colors } from '../../src/constants/Colors';
 import { authService } from '../../src/services/authService';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
-import { MotiView } from 'moti';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const loginSchema = z.object({
@@ -28,6 +27,35 @@ export default function LoginScreen() {
     const [rememberMe, setRememberMe] = React.useState(true);
     const { theme: themeMode } = useTheme();
     const theme = Colors[themeMode];
+
+    const logoScale = useRef(new Animated.Value(0.8)).current;
+    const logoOpacity = useRef(new Animated.Value(0)).current;
+    const headerOpacity = useRef(new Animated.Value(0)).current;
+    const headerTranslateY = useRef(new Animated.Value(20)).current;
+    const formOpacity = useRef(new Animated.Value(0)).current;
+    const formTranslateY = useRef(new Animated.Value(20)).current;
+
+    useEffect(() => {
+        // Logo animation
+        Animated.parallel([
+            Animated.spring(logoScale, { toValue: 1, friction: 8, useNativeDriver: true }),
+            Animated.timing(logoOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        ]).start();
+
+        // Header animation
+        Animated.parallel([
+            Animated.timing(headerOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+            Animated.timing(headerTranslateY, { toValue: 0, duration: 500, useNativeDriver: true }),
+        ]).start();
+
+        // Form animation with delay
+        setTimeout(() => {
+            Animated.parallel([
+                Animated.timing(formOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+                Animated.timing(formTranslateY, { toValue: 0, duration: 500, useNativeDriver: true }),
+            ]).start();
+        }, 100);
+    }, []);
 
     const { control, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
         resolver: zodResolver(loginSchema),
@@ -64,30 +92,39 @@ export default function LoginScreen() {
             >
                 <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
                     {/* Logo Area */}
-                    <MotiView
-                        from={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ type: 'spring', damping: 15 }}
-                        style={[styles.logoContainer, { backgroundColor: theme.primary + '15' }]}
+                    <Animated.View
+                        style={[
+                            styles.logoContainer,
+                            {
+                                backgroundColor: theme.primary + '15',
+                                opacity: logoOpacity,
+                                transform: [{ scale: logoScale }]
+                            }
+                        ]}
                     >
                         <Ionicons name="cube" size={56} color={theme.primary} />
-                    </MotiView>
+                    </Animated.View>
 
-                    <MotiView
-                        from={{ opacity: 0, translateY: 20 }}
-                        animate={{ opacity: 1, translateY: 0 }}
-                        transition={{ type: 'timing', duration: 500 }}
-                        style={styles.header}
+                    <Animated.View
+                        style={[
+                            styles.header,
+                            { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }
+                        ]}
                     >
                         <Text style={[styles.title, { color: theme.text }]}>Welcome Back</Text>
                         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Sign in to manage your inventory</Text>
-                    </MotiView>
+                    </Animated.View>
 
-                    <MotiView
-                        from={{ opacity: 0, translateY: 20 }}
-                        animate={{ opacity: 1, translateY: 0 }}
-                        transition={{ type: 'timing', duration: 500, delay: 100 }}
-                        style={[styles.formCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                    <Animated.View
+                        style={[
+                            styles.formCard,
+                            {
+                                backgroundColor: theme.surface,
+                                borderColor: theme.border,
+                                opacity: formOpacity,
+                                transform: [{ translateY: formTranslateY }]
+                            }
+                        ]}
                     >
                         <Input
                             label="Username"
@@ -127,7 +164,7 @@ export default function LoginScreen() {
                             isLoading={isLoading}
                             style={styles.button}
                         />
-                    </MotiView>
+                    </Animated.View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>

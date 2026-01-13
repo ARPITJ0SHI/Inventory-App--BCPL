@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, StyleSheet, ViewStyle, Platform, StyleProp, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, ViewStyle, StyleProp, TouchableOpacity, Animated } from 'react-native';
 import { Colors } from '../constants/Colors';
-import { MotiView } from 'moti';
 import { useTheme } from '../context/ThemeContext';
 
 interface CardProps {
@@ -15,12 +14,29 @@ interface CardProps {
 export const Card = React.memo(function Card({ children, style, delay = 0, onPress, accentColor }: CardProps) {
     const { theme: themeMode } = useTheme();
     const theme = Colors[themeMode];
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const translateYAnim = useRef(new Animated.Value(10)).current;
+
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 350,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(translateYAnim, {
+                    toValue: 0,
+                    duration: 350,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        }, delay);
+        return () => clearTimeout(timeout);
+    }, [delay]);
 
     const cardContent = (
-        <MotiView
-            from={{ opacity: 0, translateY: 10 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 350, delay }}
+        <Animated.View
             style={[
                 styles.card,
                 {
@@ -28,12 +44,14 @@ export const Card = React.memo(function Card({ children, style, delay = 0, onPre
                     shadowColor: themeMode === 'dark' ? '#000' : theme.text,
                     borderColor: accentColor || theme.border,
                     borderLeftWidth: accentColor ? 4 : 0,
+                    opacity: fadeAnim,
+                    transform: [{ translateY: translateYAnim }],
                 },
                 style
             ]}
         >
             {children}
-        </MotiView>
+        </Animated.View>
     );
 
     if (onPress) {
@@ -52,13 +70,10 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 16,
         marginBottom: 12,
-        // Enhanced shadow for iOS
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
-        // Shadow for Android
         elevation: 3,
         borderWidth: 1,
     },
 });
-
