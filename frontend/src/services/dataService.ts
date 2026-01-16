@@ -13,6 +13,7 @@ export interface PriceItem {
     price: number;
     unit?: string;
     category?: string;
+    type: 'buying' | 'selling';
 }
 
 export interface StockItem {
@@ -122,23 +123,23 @@ export const dataService = {
 
 
     // Price List
-    getPriceList: async (page: number = 1, limit: number = 50, search: string = '', sort: string = 'newest') => {
-        const cacheKey = `pricelist_${page}_${limit}_${search}_${sort}`;
+    getPriceList: async (page: number = 1, limit: number = 50, search: string = '', sort: string = 'newest', type: string = 'selling') => {
+        const cacheKey = `pricelist_${page}_${limit}_${search}_${sort}_${type}`;
         const cached = cache.get<{ data: PriceItem[]; pagination: any }>(cacheKey);
         if (cached && !search) return cached;
 
-        const response = await api.get(`/pricelist?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&sort=${sort}`);
+        const response = await api.get(`/pricelist?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&sort=${sort}&type=${type}`);
         if (!search) cache.set(cacheKey, response.data);
         return response.data;
     },
 
-    createPrice: async (data: { productName: string; price: number; category?: string }) => {
+    createPrice: async (data: { productName: string; price: number; category?: string; type: string }) => {
         const response = await api.post('/pricelist', data);
         cache.invalidate('pricelist');
         return response.data;
     },
 
-    updatePrice: async (id: string, data: { productName: string; price: number; category?: string }) => {
+    updatePrice: async (id: string, data: { productName: string; price: number; category?: string; type?: string }) => {
         const response = await api.patch(`/pricelist/${id}`, data);
         cache.invalidate('pricelist');
         return response.data;
@@ -183,7 +184,7 @@ export const dataService = {
     },
 
     deleteStockItem: async (location: string, itemName: string) => {
-        const response = await api.delete(`/stock/${location}/${itemName}`);
+        const response = await api.delete(`/stock/${encodeURIComponent(location)}/${encodeURIComponent(itemName)}`);
         cache.invalidate('stock');
         return response.data;
     },

@@ -35,6 +35,7 @@ export default function OrderListScreen() {
     const allowedLocations = useMemo(() => getAllowedLocations(), [role]);
     const isAdmin = role === Role.SUPER_ADMIN || role === Role.KHUSHAL;
     const searchRef = useRef(''); // Ref to avoid fetchData recreation on search change
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Cache logic
     const loadCachedData = async () => {
         const cached = await cacheService.load(CACHE_KEYS.ORDERS);
@@ -139,12 +140,36 @@ export default function OrderListScreen() {
         fetchData(1, false);
     }, [locationFilter, sortOrder]);
 
-    // Search - only triggers when user presses Enter or search button
+    // Search - debounced live search (300ms delay)
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
-    }, []);
+        searchRef.current = text;
+
+        // Clear any existing debounce timer
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+
+        // Set new debounce timer
+        debounceTimer.current = setTimeout(() => {
+            fetchData(1, false);
+        }, 300);
+    }, [fetchData]);
 
     const handleSearchSubmit = useCallback(() => {
+        // Clear debounce timer on immediate submit
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+        fetchData(1, false);
+    }, [fetchData]);
+
+    const handleClearSearch = useCallback(() => {
+        setSearch('');
+        searchRef.current = '';
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
         fetchData(1, false);
     }, [fetchData]);
 
@@ -444,8 +469,8 @@ export default function OrderListScreen() {
                                 returnKeyType="search"
                             />
                             {search.length > 0 && (
-                                <TouchableOpacity onPress={handleSearchSubmit}>
-                                    <Ionicons name="arrow-forward-circle" size={24} color={theme.primary} />
+                                <TouchableOpacity onPress={handleClearSearch}>
+                                    <Ionicons name="close-circle" size={24} color={theme.textSecondary} />
                                 </TouchableOpacity>
                             )}
                         </View>

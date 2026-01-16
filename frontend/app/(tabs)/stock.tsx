@@ -75,7 +75,7 @@ export default function StockScreen() {
             if (pageNum === 1 && !isBackground && items.length === 0) setLoading(true);
             else if (pageNum > 1) setLoadingMore(true);
 
-            const response = await dataService.getStock(pageNum, 15, search, locationFilter, sortOrder);
+            const response = await dataService.getStock(pageNum, 15, searchRef.current, locationFilter, sortOrder);
             const data = response.data || response;
             const pagination = response.pagination;
 
@@ -105,7 +105,7 @@ export default function StockScreen() {
             setLoadingMore(false);
             setIsInitialLoad(false);
         }
-    }, [search, locationFilter, sortOrder, allowedLocations, items.length]);
+    }, [locationFilter, sortOrder, allowedLocations, items.length]);
 
     const loadMore = useCallback(() => {
         if (!loadingMore && hasMore) {
@@ -158,12 +158,35 @@ export default function StockScreen() {
         fetchData(1, false).finally(() => setRefreshing(false));
     }, [fetchData]);
 
-    // Search - only triggers when user presses Enter or search button
+    // Search - debounced live search (300ms delay)
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
-    }, []);
+
+        // Clear any existing debounce timer
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+
+        // Set new debounce timer
+        debounceTimer.current = setTimeout(() => {
+            fetchData(1, false);
+        }, 300);
+    }, [fetchData]);
 
     const handleSearchSubmit = useCallback(() => {
+        // Clear debounce timer on immediate submit
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+        fetchData(1, false);
+    }, [fetchData]);
+
+    const handleClearSearch = useCallback(() => {
+        setSearch('');
+        searchRef.current = '';
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
         fetchData(1, false);
     }, [fetchData]);
 
@@ -454,8 +477,8 @@ export default function StockScreen() {
                                 returnKeyType="search"
                             />
                             {search.length > 0 && (
-                                <TouchableOpacity onPress={handleSearchSubmit}>
-                                    <Ionicons name="arrow-forward-circle" size={24} color={theme.primary} />
+                                <TouchableOpacity onPress={handleClearSearch}>
+                                    <Ionicons name="close-circle" size={24} color={theme.textSecondary} />
                                 </TouchableOpacity>
                             )}
                         </View>

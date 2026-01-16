@@ -23,6 +23,14 @@ router.get('/', authMiddleware, async (req, res) => {
 
         let allItems = priceList.items || [];
 
+        // Filter by Type (buying/selling) - Default to 'selling' if not specified? 
+        // Actually, frontend will always send type. Let's make it optional but recommended.
+        const { type } = req.query;
+        if (type) {
+            // Treat items with no type as 'selling' (Legacy support)
+            allItems = allItems.filter(item => (item.type || 'selling') === type);
+        }
+
         // Server-side filtering
         if (search) {
             const searchLower = search.toLowerCase();
@@ -74,15 +82,20 @@ router.get('/', authMiddleware, async (req, res) => {
 // Create a new price item
 router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { productName, price, category } = req.body;
+        const { productName, price, category, type } = req.body;
 
         let priceList = await PriceList.findOne();
         if (!priceList) {
             priceList = new PriceList({ items: [] });
         }
 
-        // Add new item
-        priceList.items.push({ productName, price, category });
+        // Add new item (with type)
+        priceList.items.push({
+            productName,
+            price,
+            category,
+            type: type || 'selling' // Default to selling
+        });
         priceList.lastUpdated = Date.now();
         await priceList.save();
 
@@ -98,7 +111,7 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update a price item
 router.patch('/:id', authMiddleware, async (req, res) => {
     try {
-        const { productName, price, category } = req.body;
+        const { productName, price, category, type } = req.body;
 
         let priceList = await PriceList.findOne();
         if (!priceList) {
@@ -113,6 +126,7 @@ router.patch('/:id', authMiddleware, async (req, res) => {
         if (productName) item.productName = productName;
         if (price !== undefined) item.price = price;
         if (category !== undefined) item.category = category;
+        if (type !== undefined) item.type = type;
 
         priceList.lastUpdated = Date.now();
         await priceList.save();

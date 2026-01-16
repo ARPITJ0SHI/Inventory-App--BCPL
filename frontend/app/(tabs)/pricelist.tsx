@@ -35,6 +35,7 @@ export default function PriceListScreen() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'asc' | 'desc_alpha'>('newest');
+    const [selectedType, setSelectedType] = useState<'buying' | 'selling'>('selling');
     const [refreshing, setRefreshing] = useState(false);
 
     const [modalVisible, setModalVisible] = useState(false);
@@ -64,7 +65,7 @@ export default function PriceListScreen() {
             if (pageNum === 1 && !isBackground && items.length === 0) setLoading(true);
             else if (pageNum > 1) setLoadingMore(true);
 
-            const response = await dataService.getPriceList(pageNum, 15, search, sortOrder);
+            const response = await dataService.getPriceList(pageNum, 15, search, sortOrder, selectedType);
             const data = response.data || response;
             const pagination = response.pagination;
 
@@ -89,7 +90,7 @@ export default function PriceListScreen() {
             setLoadingMore(false);
             setIsInitialLoad(false);
         }
-    }, [search, sortOrder, items.length]);
+    }, [search, sortOrder, selectedType, items.length]);
 
     const loadMore = useCallback(() => {
         if (!loadingMore && hasMore) {
@@ -131,15 +132,38 @@ export default function PriceListScreen() {
     // Fetch on sort change
     useEffect(() => {
         fetchData(1, false);
-    }, [sortOrder, fetchData]); // Added fetchData to dependencies
+    }, [sortOrder, selectedType, fetchData]); // Added fetchData to dependencies
 
-    // Search - only triggers when user presses Enter or search button
+    // Search - debounced live search (300ms delay)
     const handleSearchChange = useCallback((text: string) => {
         setSearch(text);
-    }, []);
+
+        // Clear any existing debounce timer
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+
+        // Set new debounce timer
+        debounceTimer.current = setTimeout(() => {
+            fetchData(1, false);
+        }, 300);
+    }, [fetchData]);
 
     const handleSearchSubmit = useCallback(() => {
+        // Clear debounce timer on immediate submit
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
         fetchData(1, false);
+    }, [fetchData]);
+
+    const handleClearSearch = useCallback(() => {
+        setSearch('');
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+        // Fetch with delay to allow state update
+        setTimeout(() => fetchData(1, false), 50);
     }, [fetchData]);
 
     // Sort toggle
@@ -202,13 +226,15 @@ export default function PriceListScreen() {
                 await dataService.updatePrice(editingItem._id, {
                     productName: data.productName,
                     price: Number(data.price),
-                    category: data.category
+                    category: data.category,
+                    type: selectedType
                 });
             } else {
                 await dataService.createPrice({
                     productName: data.productName,
                     price: Number(data.price),
-                    category: data.category
+                    category: data.category,
+                    type: selectedType
                 });
             }
             setModalVisible(false);
@@ -260,7 +286,28 @@ export default function PriceListScreen() {
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
             <View style={styles.header}>
-                <Text style={[styles.title, { color: theme.text }]}>Price List</Text>
+                <View style={[styles.headerRow]}>
+                    <Text style={[styles.title, { color: theme.text, marginBottom: 0 }]}>Price List</Text>
+                    {canEditPrices() && (
+                        <View></View> // Spacer or action if needed
+                    )}
+                </View>
+
+                {/* Type Tabs */}
+                <View style={[styles.tabContainer, { backgroundColor: theme.surface }]}>
+                    <TouchableOpacity
+                        style={[styles.tab, selectedType === 'selling' && { backgroundColor: theme.primary }]}
+                        onPress={() => setSelectedType('selling')}
+                    >
+                        <Text style={[styles.tabText, { color: selectedType === 'selling' ? '#fff' : theme.textSecondary }]}>Selling Price</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, selectedType === 'buying' && { backgroundColor: theme.primary }]}
+                        onPress={() => setSelectedType('buying')}
+                    >
+                        <Text style={[styles.tabText, { color: selectedType === 'buying' ? '#fff' : theme.textSecondary }]}>Buying Price</Text>
+                    </TouchableOpacity>
+                </View>
                 <View style={[styles.searchContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                     <Ionicons name="search" size={20} color={theme.textSecondary} />
                     <TextInput
@@ -273,8 +320,8 @@ export default function PriceListScreen() {
                         returnKeyType="search"
                     />
                     {search.length > 0 && (
-                        <TouchableOpacity onPress={handleSearchSubmit}>
-                            <Ionicons name="arrow-forward-circle" size={24} color={theme.primary} />
+                        <TouchableOpacity onPress={handleClearSearch}>
+                            <Ionicons name="close-circle" size={24} color={theme.textSecondary} />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -409,6 +456,29 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     header: { padding: 20, paddingBottom: 10 },
     title: { fontSize: 28, fontWeight: 'bold', marginBottom: 16 },
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 16,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    tabText: {
+        fontWeight: '600',
+        fontSize: 14,
+    },
+
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
