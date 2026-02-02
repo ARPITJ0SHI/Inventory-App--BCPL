@@ -25,6 +25,9 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' })); // Increased for base64 images
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+const agentRoutes = require('./routes/agentRoutes');
+app.use('/api/agent', agentRoutes);
+
 // Database Connection with optimized settings
 mongoose.connect(MONGODB_URI, {
     maxPoolSize: 10, // Connection pool

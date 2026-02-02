@@ -161,6 +161,9 @@ router.delete('/:location/:itemName', authMiddleware, async (req, res) => {
 router.post('/rename', authMiddleware, async (req, res) => {
     const { location, oldItemName, newItemName } = req.body;
 
+    console.log('[RENAME] Request:', { location, oldItemName, newItemName });
+    console.log('[RENAME] Same name check:', oldItemName?.trim() === newItemName?.trim());
+
     try {
         // Enforce Location Access
         if (req.user.role === 'factory_manager' && location !== 'Factory') {
@@ -178,15 +181,20 @@ router.post('/rename', authMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'Item not found' });
         }
 
-        // Check if new name already exists (Merge logic or Error?)
-        // Let's Error for now to be safe, user should delete target manualy if they want to merge
-        const existingIndex = stock.items.findIndex(i => i.name === newItemName);
-        if (existingIndex > -1) {
-            return res.status(400).json({ message: 'Item with new name already exists. Cannot rename.' });
-        }
+        // Check if new name already exists (only if actually renaming)
+        // Use trim() to handle whitespace-only differences
+        const oldNameTrimmed = oldItemName?.trim();
+        const newNameTrimmed = newItemName?.trim();
 
-        // Rename
-        stock.items[itemIndex].name = newItemName;
+        if (oldNameTrimmed !== newNameTrimmed) {
+            const existingIndex = stock.items.findIndex(i => i.name === newNameTrimmed);
+            if (existingIndex > -1) {
+                return res.status(400).json({ message: 'Item with new name already exists. Cannot rename.' });
+            }
+            // Actually rename
+            stock.items[itemIndex].name = newNameTrimmed;
+        }
+        // If names are same (just whitespace diff), no rename needed
         stock.lastUpdated = Date.now();
         await stock.save();
 
