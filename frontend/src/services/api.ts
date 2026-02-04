@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 
 // Get API URL - Use Local for Dev, Production for Build
 const PROD_URL = Constants.expoConfig?.extra?.apiUrl;
-const DEV_URL = 'http://192.168.1.10:5000/api'; // Your local IP
+const DEV_URL = 'http://192.168.2.102:5000/api'; // Your local IP
 
 export const API_URL = __DEV__ ? DEV_URL : (PROD_URL || DEV_URL);
 

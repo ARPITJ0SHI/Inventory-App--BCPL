@@ -29,12 +29,24 @@ const agentRoutes = require('./routes/agentRoutes');
 app.use('/api/agent', agentRoutes);
 
 // Database Connection with optimized settings
+// Pre-warm MCP Client for reduced latency
+const mcpClient = require('./services/mcpClient');
+
 mongoose.connect(MONGODB_URI, {
     maxPoolSize: 10, // Connection pool
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
 })
-    .then(() => console.log('MongoDB connected'))
+    .then(async () => {
+        console.log('MongoDB connected');
+        // Pre-warm MCP client after DB is ready
+        try {
+            await mcpClient.startMCPClient();
+            console.log('MCP Client pre-warmed successfully');
+        } catch (err) {
+            console.error('MCP Client pre-warm failed:', err.message);
+        }
+    })
     .catch(err => console.log('MongoDB connection error:', err));
 
 // Routes
@@ -62,7 +74,14 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// Create HTTP server and attach WebSocket
+const http = require('http');
+const { initWebSocketServer } = require('./routes/agentWebSocket');
 
+const server = http.createServer(app);
+initWebSocketServer(server);
+
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`WebSocket available at ws://localhost:${PORT}/ws/agent`);
+});
