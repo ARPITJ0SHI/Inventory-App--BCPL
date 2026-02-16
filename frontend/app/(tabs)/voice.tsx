@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Animated, Dimensions, ScrollView, Platform, Modal, FlatList, Alert } from 'react-native';
-import { voiceStyles as styles } from './_voiceStyles';
+import { voiceStyles as styles } from '../../src/styles/voiceStyles';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import * as Speech from 'expo-speech';
 import * as FileSystem from 'expo-file-system/legacy';
