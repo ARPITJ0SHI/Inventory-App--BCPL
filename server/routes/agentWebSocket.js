@@ -406,10 +406,10 @@ async function streamTTS(ws, text) {
         console.log('[TTS] Sent audio_start, calling ElevenLabs...');
 
         const audioStream = await elevenLabs.textToSpeech.stream(
-            "ecp3DWciuUyW7BYM7II1",
+            "mActWQg9kibLro6Z2ouY",
             {
                 text: text,
-                modelId: "eleven_flash_v2_5",
+                modelId: "eleven_multilingual_v2",
                 outputFormat: "mp3_44100_128"
             }
         );

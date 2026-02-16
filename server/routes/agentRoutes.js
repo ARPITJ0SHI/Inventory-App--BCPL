@@ -274,10 +274,10 @@ RULES:
             try {
                 console.log("Generating TTS with ElevenLabs...");
                 const audioStream = await elevenLabs.textToSpeech.convert(
-                    "ecp3DWciuUyW7BYM7II1",
+                    "mActWQg9kibLro6Z2ouY",
                     {
                         text: finalResponseText,
-                        modelId: "eleven_flash_v2_5",
+                        modelId: "eleven_multilingual_v2",
                         outputFormat: "mp3_44100_128"
                     }
                 );
@@ -362,10 +362,10 @@ router.post('/session/start', async (req, res) => {
         if (elevenLabs) {
             try {
                 const audioStream = await elevenLabs.textToSpeech.convert(
-                    "ecp3DWciuUyW7BYM7II1",
+                    "mActWQg9kibLro6Z2ouY",
                     {
                         text: greeting,
-                        modelId: "eleven_flash_v2_5",
+                        modelId: "eleven_multilingual_v2",
                         outputFormat: "mp3_44100_128"
                     }
                 );
