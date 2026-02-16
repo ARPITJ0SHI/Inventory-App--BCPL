@@ -409,7 +409,7 @@ async function streamTTS(ws, text) {
             "21m00Tcm4TlvDq8ikWAM", // Rachel voice - warm & natural
             {
                 text: text,
-                model_id: "eleven_multilingual_v2",
+                model_id: "eleven_ttv_v3",
                 output_format: "mp3_44100_128"
             }
         );
