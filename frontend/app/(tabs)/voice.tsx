@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Animated, Dimensions, 
 import { voiceStyles as styles } from './voiceStyles';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import * as Speech from 'expo-speech';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
+
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -439,7 +440,7 @@ export default function VoiceScreen() {
         try {
             // Read file as base64
             const base64Audio = await FileSystem.readAsStringAsync(uri, {
-                encoding: FileSystem.EncodingType.Base64,
+                encoding: 'base64',
             });
 
             // Convert base64 to binary
