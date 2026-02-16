@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: balaji-app-api
+    runtime: node
+    plan: free
+    repo: https://github.com/arpitjoshi555s-organization/Inventory-App--BCPL # Optional if connected via UI
+    # 1. Build MCP Server (TypeScript -> JS)
+    # 2. Install Main Server dependencies
+    buildCommand: |
+      echo "Building MCP Server..."
+      cd mcp-server && npm install && npm run build
+      echo "Building Main Server..."
+      cd ../server && npm install
+    # Start the Main Server. It will spawn the MCP server as a child process.
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+    healthCheckPath: /health
