@@ -406,10 +406,10 @@ async function streamTTS(ws, text) {
         console.log('[TTS] Sent audio_start, calling ElevenLabs...');
 
         const audioStream = await elevenLabs.textToSpeech.convert(
-            "pFZP5JQG7iQjIQuC4Bku", // Lily voice
+            "21m00Tcm4TlvDq8ikWAM", // Rachel voice - warm & natural
             {
                 text: text,
-                model_id: "eleven_turbo_v2_5",
+                model_id: "eleven_multilingual_v2",
                 output_format: "mp3_44100_128"
             }
         );
