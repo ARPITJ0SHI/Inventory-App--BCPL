@@ -121,7 +121,7 @@ server.tool(
         quantityChange: z.number().describe("Amount to add/reduce/set"),
         action: z.enum(["add", "reduce", "set"]).describe("Action to perform"),
         location: z.enum(["shop", "factory"]).describe("Target location"),
-        userRole: z.string().describe("Role of the user (for permissions)"),
+        userRole: z.string().default("viewer").describe("Role of the user (for permissions)"),
     },
     async ({ itemName, quantityChange, action, location, userRole }) => {
         // RBAC Check
@@ -220,6 +220,58 @@ server.tool(
         }).join("\n\n");
 
         return { content: [{ type: "text", text: result }] };
+    }
+);
+
+// Tool: Count Inventory Items
+server.tool(
+    "inventory_count",
+    {
+        location: z.enum(["shop", "factory"]).optional().describe("Optional location filter"),
+    },
+    async ({ location }) => {
+        const dbLocation = location ? location.charAt(0).toUpperCase() + location.slice(1) : null;
+        const filter: any = dbLocation ? { location: dbLocation } : {};
+        const stockDocs = await Stock.find(filter);
+
+        let totalItems = 0;
+        for (const doc of stockDocs) {
+            totalItems += (doc as any).items.length;
+        }
+
+        const locationLabel = dbLocation || "all locations";
+        return { content: [{ type: "text", text: `Total unique items in ${locationLabel}: ${totalItems}` }] };
+    }
+);
+
+// Tool: List Sample Items
+server.tool(
+    "inventory_list_sample",
+    {
+        count: z.number().min(1).max(10).default(5).describe("Number of item names to return (max 10)"),
+        location: z.enum(["shop", "factory"]).optional().describe("Optional location filter"),
+    },
+    async ({ count, location }) => {
+        const dbLocation = location ? location.charAt(0).toUpperCase() + location.slice(1) : null;
+        const filter: any = dbLocation ? { location: dbLocation } : {};
+        const stockDocs = await Stock.find(filter);
+
+        const allItems: string[] = [];
+        for (const doc of stockDocs) {
+            for (const item of (doc as any).items) {
+                allItems.push(`${item.name} (${(doc as any).location})`);
+            }
+        }
+
+        if (allItems.length === 0) {
+            return { content: [{ type: "text", text: "No items found." }] };
+        }
+
+        // Shuffle and pick 'count' items
+        const shuffled = allItems.sort(() => Math.random() - 0.5);
+        const sample = shuffled.slice(0, Math.min(count, allItems.length));
+
+        return { content: [{ type: "text", text: `Sample items:\n${sample.join("\n")}` }] };
     }
 );
 

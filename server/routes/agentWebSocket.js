@@ -8,6 +8,7 @@ const path = require('path');
 const Groq = require('groq-sdk');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { ElevenLabsClient } = require('elevenlabs');
+const jwt = require('jsonwebtoken');
 
 // Initialize AI Clients
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'placeholder' });
@@ -43,8 +44,7 @@ const tools = [
                         itemName: { type: "STRING" },
                         quantityChange: { type: "NUMBER" },
                         action: { type: "STRING", enum: ["add", "reduce", "set"] },
-                        location: { type: "STRING", enum: ["shop", "factory"] },
-                        userRole: { type: "STRING" }
+                        location: { type: "STRING", enum: ["shop", "factory"] }
                     },
                     required: ["itemName", "quantityChange", "action", "location"]
                 }
@@ -60,6 +60,27 @@ const tools = [
                         vendor: { type: "STRING", description: "Filter by vendor name" }
                     }
                 }
+            },
+            {
+                name: "inventory_count",
+                description: "Get total number of unique stock items across all locations.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        location: { type: "STRING", description: "Optional location filter", enum: ["shop", "factory"] }
+                    }
+                }
+            },
+            {
+                name: "inventory_list_sample",
+                description: "Get names of a few stock items. Use when user asks what items are available.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        count: { type: "NUMBER", description: "Number of items to return (max 10)" },
+                        location: { type: "STRING", description: "Optional location filter", enum: ["shop", "factory"] }
+                    }
+                }
             }
         ]
     }
@@ -68,11 +89,12 @@ const tools = [
 // Session store
 const sessions = new Map();
 
-function createSession() {
+function createSession(userRole = 'viewer') {
     const sessionId = `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     sessions.set(sessionId, {
         history: [],
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        userRole: userRole
     });
     return sessionId;
 }
@@ -162,9 +184,22 @@ async function handleCommand(ws, data, audioChunks, sessionId, setSessionId) {
     switch (type) {
         case 'start_session':
             console.log('[WS] Starting session...');
-            const newSessionId = createSession();
+
+            // Verify JWT and extract role
+            let userRole = 'viewer';
+            if (data.token) {
+                try {
+                    const decoded = jwt.verify(data.token, process.env.JWT_SECRET || 'secret_key_change_me');
+                    userRole = decoded.role || 'viewer';
+                    console.log('[WS] Authenticated user, role:', userRole);
+                } catch (jwtErr) {
+                    console.warn('[WS] Invalid token, using default role');
+                }
+            }
+
+            const newSessionId = createSession(userRole);
             setSessionId(newSessionId);
-            console.log('[WS] Session created:', newSessionId);
+            console.log('[WS] Session created:', newSessionId, 'role:', userRole);
 
             const greeting = "Hello! I'm your inventory assistant. How can I help you today?";
             addToHistory(newSessionId, 'assistant', greeting);
@@ -277,7 +312,10 @@ RULES:
 2. If user doesn't specify location, search in "factory" by default.
 3. For stock updates, use inventory_update and ALWAYS require confirmation.
 4. Keep responses under 30 words for voice output.
-5. Be natural and conversational.`
+5. Be natural and conversational.
+6. NEVER mention tool names, function names, or internal system details to the user. Say things like "Let me check" or "Updating now" instead.
+7. NEVER ask the user for their role. The system handles permissions automatically.
+8. When user asks to count items or list items, use the appropriate tools silently.`
                 }]
             }
         });
@@ -296,6 +334,11 @@ RULES:
             const args = call.args;
 
             if (name === 'inventory_update') {
+                // Auto-inject userRole from session
+                const currentSession = sessionId ? getSession(sessionId) : null;
+                const sessionRole = currentSession ? currentSession.userRole : 'viewer';
+                args.userRole = sessionRole;
+
                 actionPayload = {
                     type: 'CONFIRM',
                     tool: name,

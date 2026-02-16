@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { API_URL } from '../../src/services/api';
+import { useAuth } from '../../src/context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ const getWebSocketUrl = () => {
 
 export default function VoiceScreen() {
     const insets = useSafeAreaInsets();
+    const { token } = useAuth();
     const [recording, setRecording] = useState<Audio.Recording | null>(null);
     const recordingRef = useRef<Audio.Recording | null>(null);
     const soundRef = useRef<Audio.Sound | null>(null);
@@ -117,7 +119,7 @@ export default function VoiceScreen() {
             console.log('[WS] Connected');
             setIsConnected(true);
             // Start session immediately
-            ws.send(JSON.stringify({ type: 'start_session' }));
+            ws.send(JSON.stringify({ type: 'start_session', token: token || '' }));
         };
 
         ws.onmessage = async (event) => {
