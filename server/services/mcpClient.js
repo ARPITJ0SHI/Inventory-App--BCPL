@@ -19,6 +19,7 @@ async function startMCPClient() {
     transport = new StdioClientTransport({
         command: "node",
         args: [MCP_SERVER_PATH],
+        env: process.env
     });
 
     client = new Client({
