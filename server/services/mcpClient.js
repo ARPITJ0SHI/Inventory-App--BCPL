@@ -8,7 +8,7 @@ const MCP_SERVER_PATH = path.join(__dirname, '../../mcp-server/dist/index.js');
 
 let client;
 let transport;
-let process;
+
 
 async function startMCPClient() {
     if (client) return client;
