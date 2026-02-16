@@ -406,7 +406,7 @@ async function streamTTS(ws, text) {
         console.log('[TTS] Sent audio_start, calling ElevenLabs...');
 
         const audioStream = await elevenLabs.textToSpeech.stream(
-            "EXAVITQu4vr4xnSDxMaLEXAVITQu4vr4xnSDxMaL",
+            "EXAVITQu4vr4xnSDxMaL",
             {
                 text: text,
                 modelId: "eleven_flash_v2_5",
