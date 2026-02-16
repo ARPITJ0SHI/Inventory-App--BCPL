@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const Groq = require('groq-sdk');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { ElevenLabsClient } = require('elevenlabs');
+const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
 const jwt = require('jsonwebtoken');
 
 // Initialize AI Clients
@@ -405,12 +405,12 @@ async function streamTTS(ws, text) {
         ws.send(JSON.stringify({ type: 'audio_start' }));
         console.log('[TTS] Sent audio_start, calling ElevenLabs...');
 
-        const audioStream = await elevenLabs.textToSpeech.convert(
-            "21m00Tcm4TlvDq8ikWAM", // Rachel voice - warm & natural
+        const audioStream = await elevenLabs.textToSpeech.stream(
+            "ecp3DWciuUyW7BYM7II1",
             {
                 text: text,
-                model_id: "eleven_ttv_v3",
-                output_format: "mp3_44100_128"
+                modelId: "eleven_flash_v2_5",
+                outputFormat: "mp3_44100_128"
             }
         );
 

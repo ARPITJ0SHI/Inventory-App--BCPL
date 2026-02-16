@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const Groq = require('groq-sdk');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { ElevenLabsClient } = require('elevenlabs');
+const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
 const authenticate = require('../middleware/authMiddleware');
 
 const upload = multer({ dest: 'uploads/' });
@@ -274,11 +274,11 @@ RULES:
             try {
                 console.log("Generating TTS with ElevenLabs...");
                 const audioStream = await elevenLabs.textToSpeech.convert(
-                    "pFZP5JQG7iQjIQuC4Bku", // Lily - Hindi-capable voice
+                    "ecp3DWciuUyW7BYM7II1",
                     {
                         text: finalResponseText,
-                        model_id: "eleven_turbo_v2_5", // Fast, multilingual
-                        output_format: "mp3_44100_128"
+                        modelId: "eleven_flash_v2_5",
+                        outputFormat: "mp3_44100_128"
                     }
                 );
 
@@ -362,11 +362,11 @@ router.post('/session/start', async (req, res) => {
         if (elevenLabs) {
             try {
                 const audioStream = await elevenLabs.textToSpeech.convert(
-                    "pFZP5JQG7iQjIQuC4Bku", // Lily voice
+                    "ecp3DWciuUyW7BYM7II1",
                     {
                         text: greeting,
-                        model_id: "eleven_turbo_v2_5",
-                        output_format: "mp3_44100_128"
+                        modelId: "eleven_flash_v2_5",
+                        outputFormat: "mp3_44100_128"
                     }
                 );
                 const chunks = [];
