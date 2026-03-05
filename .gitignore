@@ -20,6 +20,7 @@ out/
 frontend/.expo/
 frontend/dist/
 frontend/web-build/
+google-services.json
 *.jks
 *.p8
 *.p12

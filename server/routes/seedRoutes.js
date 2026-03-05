@@ -9,16 +9,21 @@ const bcrypt = require('bcryptjs');
 // Seed super_admin only (called on server startup if not exists)
 const ensureSuperAdmin = async () => {
     try {
+        const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD;
+        if (!superAdminPassword) {
+            console.error('SUPER_ADMIN_PASSWORD env variable is not set. Skipping super admin seed.');
+            return;
+        }
         const exists = await User.findOne({ role: 'super_admin' });
         if (!exists) {
             const salt = await bcrypt.genSalt(10);
-            const password = await bcrypt.hash('Dsum@40778', salt);
+            const password = await bcrypt.hash(superAdminPassword, salt);
             await new User({
                 username: 'Superadmin',
                 password,
                 role: 'super_admin'
             }).save();
-            console.log('Super admin created: Superadmin / Dsum@40778');
+            console.log('Super admin user created successfully.');
         }
     } catch (err) {
         console.error('Failed to seed super admin:', err);
